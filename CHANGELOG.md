@@ -2,6 +2,15 @@
 
 O histórico abaixo descreve o estado do projeto; uma entrada não significa que há um release publicado. Consulte [Releases](https://github.com/xbrunots/xnotes/releases) para distribuições e [VALIDACAO.md](docs/VALIDACAO.md) para execuções registradas.
 
+## Em preparação — IA local e busca central
+
+- Campo central na barra da janela com modos Buscar e Pedir à IA, navegação por teclado e atalho Ctrl+K.
+- Engrenagem da busca abre Configurações diretamente na seção Inteligência artificial, com provedor, agente/modo e esforço; executável e modelo ficam em Avançado.
+- Integrações com Codex CLI, Claude Code e ACP v1, reutilizando autenticação existente e preferências locais fora do Git.
+- Criação e edição de notas, grupos e sessões por ações tipadas, com leitura de contexto, aplicação local validada e proteção contra alterações concorrentes.
+- Cancelamento, relatório de alterações, lixeira com anexos preservados e desfazer do último lote da IA durante a sessão do aplicativo.
+- Testes de transporte, operações da biblioteca e interface Electron com provedores sintéticos; configuração e limites em [IA local](docs/IA_LOCAL.md).
+
 ## Em preparação — apresentação pública
 
 - README com identidade visual, capturas reais, autoria de Bruno Brito e versão em inglês.

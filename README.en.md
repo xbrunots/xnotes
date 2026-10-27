@@ -15,6 +15,7 @@ Write visually, connect ideas and keep code alongside its context. Your library 
 - Edit rich text, paste Markdown, and work with headings, tables, tasks and links.
 - Keep editable Monaco code blocks with 84 languages and local workers. Code is stored as content and never executed.
 - Organize groups, sessions, tags and linked notes. Open multiple tabs in single, side-by-side or masonry views.
+- Use the central search box to create, edit and organize notes, groups and sessions through Codex CLI, Claude Code or an ACP v1 agent. Configure provider, agent and reasoning effort from the search settings shortcut.
 - Choose 10 global themes, 20 note styles and two workspace appearances.
 - Connect to Notion, review an inventory and coverage gaps before importing, or use full exports and Obsidian vaults while preserving source files. See the [migration guide](docs/IMPORTACAO_NOTION.md).
 - Work offline, export ZIP backups and synchronize manually or daily with Git history and conflict review.
@@ -35,10 +36,13 @@ npm start
 
 You can dismiss the GitHub onboarding and use the app locally. `Ctrl+S` saves locally; `Ctrl+Shift+S` synchronizes. Typing, importing and closing do not upload your notes.
 
+For AI, press **Ctrl+K**, select **Pedir à IA**, and click the settings icon. Use an existing installed/authenticated CLI; the process runs locally, while inference may use the provider's cloud. Validated actions save locally with stale-edit protection and undo for the latest AI batch. Configuration stays on the device, outside Git sync. See the [AI setup and integration contract](docs/IA_LOCAL.md) in Portuguese.
+
 ```powershell
 npm run docs:check
 npm test
 npm run test:ui
+npm run test:ai-ui
 npm run dist
 npm run test:portable
 ```
@@ -51,7 +55,11 @@ Electron handles storage, credentials and Git operations through a narrow preloa
 
 The project includes recovery journals and checkpoints, immutable revisions, merge and stale-conflict guards, and tests against real Git with isolated local remotes. Private GitHub repositories are not end-to-end encryption. Backend authentication, downloads and scheduling use fixtures in QA; this does not certify every account or Windows configuration.
 
+AI adapters return typed workspace actions instead of receiving direct access to your library files. The application validates the complete batch and checks its base again inside the storage queue. CLI/ACP tests and the Electron AI flow use controlled providers without real model calls. A user-selected ACP executable remains a trusted local program; the client protocol is not an operating-system sandbox.
+
 ## Built with AI assistance
+
+![The central AI search creates a group, session and note with an undo action. Screenshot uses synthetic QA data and provider.](docs/assets/notes-ai-search.png)
 
 notes is a portfolio project about taking a product direction through implementation, documentation and reproducible verification with AI assistance. Human direction and maintenance remain explicit. We do not claim a percentage of generated code, a complete prompt history or an external security audit.
 

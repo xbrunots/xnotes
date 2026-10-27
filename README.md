@@ -45,6 +45,7 @@ A sincronização é opcional e usa um repositório **privado na sua conta GitHu
 | **Escrita visual** | Colar Markdown e editar títulos, listas, tarefas, tabelas e links diretamente na nota. |
 | **Código com contexto** | Editar blocos Monaco com 84 linguagens, workers locais e conteúdo persistido. Código não é executado. |
 | **Organização flexível** | Usar grupos, sessões, tags, links entre notas, abas e painéis redimensionáveis. |
+| **IA pelo seu CLI** | Criar, editar e organizar notas, grupos e sessões pela busca central, com Codex CLI, Claude Code ou ACP e configuração de agente/esforço. |
 | **Seu espaço, seu tema** | Escolher entre 10 temas globais, 20 estilos por nota e aparências Padrão ou Ilha. |
 | **Dados locais** | Trabalhar sem conexão, manter anexos e exportar backups completos em ZIP. |
 | **GitHub opcional** | Sincronizar com histórico Git, merge de alterações compatíveis e comparação Local/GitHub para conflitos. |
@@ -75,6 +76,12 @@ npm start
 
 A primeira abertura oferece a conexão com GitHub. Você pode concluir o onboarding e trabalhar localmente. O [guia de uso](docs/GUIA.md) explica conexão, importação, atalhos e recuperação; o [guia de desenvolvimento](docs/DESENVOLVIMENTO.md) explica build e testes.
 
+**Quer usar IA?** Clique na busca central ou pressione **Ctrl+K**, escolha **Pedir à IA** e use a engrenagem para configurar seu provedor. O notes executa um CLI já instalado e autenticado na máquina; o modelo pode usar a nuvem do provedor. Ações validadas são salvas localmente, com desfazer do último lote e proteção contra edições concorrentes. Veja [configuração, exemplos e contrato](docs/IA_LOCAL.md).
+
+![Busca central do notes com uma estrutura de grupo, sessão e nota criada pela IA e opção de desfazer.](docs/assets/notes-ai-search.png)
+
+<p align="center"><sub>Interface Electron real com dados e provedor sintéticos de QA. <a href="docs/assets/notes-ai-settings.png">Ver configurações de provedor, agente e esforço.</a></sub></p>
+
 ## Por dentro da engenharia
 
 O notes é um projeto de portfólio de **Bruno Brito**, desenvolvido com assistência de IA e foco em transformar direção de produto em software verificável.
@@ -85,6 +92,7 @@ O notes é um projeto de portfólio de **Bruno Brito**, desenvolvido com assist�
 | **Armazenamento com recuperação** | Journal, checkpoints e revisões ajudam a preservar trabalho após interrupções. | [Storage](desktop/storage.cjs) · [Testes](tests/storage.test.cjs) |
 | **Conflito como parte do produto** | Versões incompatíveis exigem decisão; uma comparação desatualizada não pode sobrescrever alterações novas. | [GitHub Sync](desktop/github-sync.cjs) · [Especificação](docs/ESPECIFICACAO.md) |
 | **Validação em camadas** | Testes de lógica, integração com Git, interface Electron e execução do portable têm responsabilidades distintas. | [Desenvolvimento](docs/DESENVOLVIMENTO.md) · [Validação](docs/VALIDACAO.md) |
+| **Ações de IA com contrato** | O modelo devolve operações tipadas; o aplicativo valida o lote, confere sua base e grava pela mesma fila de persistência das notas. | [IA local](docs/IA_LOCAL.md) · [Testes](tests/ai-workspace.test.cjs) |
 | **IA com critérios de aceite** | Regras explícitas, decisões documentadas e verificações reproduzíveis dão contexto à implementação assistida. | [Desenvolvimento com IA](docs/DESENVOLVIMENTO_COM_IA.md) |
 
 **Stack:** Electron · React · TipTap/ProseMirror · Monaco Editor · esbuild · Node.js · Git · GitHub CLI · Playwright.
@@ -99,6 +107,7 @@ O renderer, as fontes e os workers do Monaco são distribuídos localmente. O ap
 | Entender a solução | [Arquitetura e modelo de dados](docs/ARQUITETURA.md) |
 | Avaliar o escopo | [Especificação e critérios de aceite](docs/ESPECIFICACAO.md) |
 | Migrar do Notion | [Conexão, cobertura, ZIP e retomada](docs/IMPORTACAO_NOTION.md) |
+| Usar IA na biblioteca | [CLI/ACP, provedores, exemplos e privacidade](docs/IA_LOCAL.md) |
 | Entender as escolhas | [Registro de decisões](docs/DECISOES.md) |
 | Reproduzir build e QA | [Desenvolvimento](docs/DESENVOLVIMENTO.md) e [validação registrada](docs/VALIDACAO.md) |
 | Avaliar o trabalho com IA | [Processo, limites e evidências](docs/DESENVOLVIMENTO_COM_IA.md) |

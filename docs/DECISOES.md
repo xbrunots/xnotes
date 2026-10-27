@@ -92,6 +92,14 @@ Este registro explica escolhas presentes no código e suas consequências para m
 
 **Evidência.** [Guia e contrato da migração](IMPORTACAO_NOTION.md), [notion-client.test.cjs](../tests/notion-client.test.cjs), [notion-migration.test.cjs](../tests/notion-migration.test.cjs), [notion-migration-ui.cjs](../tests/notion-migration-ui.cjs).
 
+## D-12 · Integrar IA por processos locais e ações tipadas
+
+**Decisão atual.** A busca central oferece busca local e IA com a mesma entrada de teclado. Codex CLI, Claude Code e ACP v1 são adaptadores do processo principal; as preferências de provedor/agente/esforço pertencem ao dispositivo e a autenticação permanece no CLI. O modelo retorna uma mensagem, uma solicitação de leitura ou ações limitadas por schema. O aplicativo valida e aplica as ações pelo armazenamento existente, com guarda de versão repetida na fila de gravação.
+
+**Consequências.** A integração reutiliza um provedor instalado sem exigir backend do autor. Não pressupõe inferência offline: um CLI pode usar um serviço remoto. Execução sem shell, contexto limitado e capacidades ACP restritas delimitam a integração, mas o programa ACP escolhido continua confiado com as permissões do usuário. Modelos e versões incompatíveis falham explicitamente. O último lote pode ser desfeito em memória enquanto suas entidades não tiverem recebido mudanças posteriores; não há histórico permanente de conversa no notes nem upload GitHub iniciado pela ação de IA.
+
+**Evidência.** [Guia e contrato](IA_LOCAL.md), [runtime](../desktop/ai-runtime.cjs), [ações](../desktop/ai-workspace.cjs), [transporte em testes](../tests/ai-runtime.test.cjs), [integridade das ações](../tests/ai-workspace.test.cjs), [Electron](../tests/ai-ui.cjs).
+
 ## Como evoluir estas decisões
 
 Uma contribuição que altere uma decisão deve explicar o comportamento antes/depois, a migração de dados quando aplicável, as consequências e os testes executados. Atualize este registro junto com o código e os critérios da [especificação](ESPECIFICACAO.md). Propostas futuras não são compromissos de roadmap; a implementação e as evidências determinam o estado descrito aqui.

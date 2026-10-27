@@ -11,6 +11,8 @@ const { AssetStore } = require('./assets.cjs');
 const { importWorkspace } = require('./importers.cjs');
 const { NotionClient } = require('./notion-client.cjs');
 const { NotionMigration } = require('./notion-migration.cjs');
+const { AiRuntime } = require('./ai-runtime.cjs');
+const { AiWorkspace } = require('./ai-workspace.cjs');
 const { writeBackup,readBackup,BACKUP_LIMITS } = require('./backups.cjs');
 const seed = require('./seed.json');
 
@@ -23,6 +25,7 @@ const testing = process.env.NOTES_TEST === '1';
 const syncOnly = process.argv.includes('--sync-only');
 let openedDeviceCode, scheduledSync, scheduling = Promise.resolve();
 let notionClient, notionMigration, notionOperation;
+let aiRuntime, aiWorkspace;
 const send = (channel, value) => { if (win && !win.isDestroyed()) win.webContents.send(channel, value); };
 const action = (type, data = {}) => send('ui:action', { type, ...data });
 
@@ -100,8 +103,16 @@ function handle(channel, fn) {
   });
 }
 function registerIPC() {
-  handle('workspace:bootstrap', async () => ({ snapshot:store.snapshot, sync:syncStatus(), onboarding:(!testing||process.env.NOTES_TEST_SHOW_ONBOARDING==='1')&&!config.githubOnboardingSeen&&!sync.status.connected, recovery:store.recovery, warning:config.configWarning, dataDir, version:app.getVersion() }));
+  handle('workspace:bootstrap', async () => ({ snapshot:store.snapshot, sync:syncStatus(), ai:aiRuntime.status(), onboarding:(!testing||process.env.NOTES_TEST_SHOW_ONBOARDING==='1')&&!config.githubOnboardingSeen&&!sync.status.connected, recovery:store.recovery, warning:config.configWarning, dataDir, version:app.getVersion() }));
   handle('workspace:save', async (snapshot, base) => store.save(snapshot, {base}));
+  handle('ai:status',()=>({...aiRuntime.status(),canUndo:!!aiWorkspace.undoRecord}));
+  handle('ai:configure',settings=>{if(closing)throw new Error('A janela está fechando.');return aiRuntime.configure(settings);});
+  handle('ai:discover',()=>aiRuntime.discover());
+  handle('ai:run',payload=>{if(closing)throw new Error('A janela está fechando.');return aiWorkspace.run(payload);});
+  handle('ai:apply',planId=>{if(closing||importing)throw new Error('Aguarde o salvamento ou importação terminar.');return aiWorkspace.apply(planId);});
+  handle('ai:undo',()=>{if(closing||importing)throw new Error('Aguarde o salvamento ou importação terminar.');return aiWorkspace.undo();});
+  handle('ai:cancel',()=>aiWorkspace.cancel());
+  handle('ai:clear-history',()=>aiWorkspace.clearHistory());
   handle('clipboard:write', async text=>{if(typeof text!=='string'||text.length>16*1024*1024)throw new Error('Texto inválido.');await clipboard.writeText(text);});
   handle('clipboard:read', async ()=>(await clipboard.readText()).slice(0,16*1024*1024));
   handle('editor:native', command=>{if(!['undo','redo','cut','copy','paste','selectAll'].includes(command))throw new Error('Comando inválido.');win.webContents[command]();});
@@ -272,7 +283,7 @@ function registerIPC() {
   });
   ipcMain.on('window:close-ready', async event => {
     if (event.sender !== win?.webContents) return;
-    readyToClose = true; await stopNotion(); await sync.close(); await tools.close(); await store.close(); await scheduling; win.close();
+    readyToClose = true; await aiWorkspace.close(); await stopNotion(); await sync.close(); await tools.close(); await store.close(); await scheduling; win.close();
   });
 }
 
@@ -311,6 +322,10 @@ async function start() {
   sync = new GitHubSync({store,assets,tools,repoDir:path.join(runtimeRoot,'notes-repository'),onStatus:updateSyncStatus});
   await sync.init({syncIfDue:false});
   if(syncOnly){await sync.syncIfDue();await scheduling;await sync.close();await tools.close();await store.close();app.exit(0);return;}
+  // Reading device settings never starts a CLI, a model, or a login flow.
+  aiRuntime=new AiRuntime({dataDir,testing,emit:event=>send('ai:progress',event)});
+  await aiRuntime.init();
+  aiWorkspace=new AiWorkspace({store,runtime:aiRuntime,emit:event=>send('ai:progress',event)});
   // Opening the app only restores the encrypted local grant. All Notion
   // network activity and browser authorization require an explicit UI action.
   const notionOptions={dataDir,secureStorage:{isAvailable:()=>safeStorage.isEncryptionAvailable(),encrypt:text=>safeStorage.encryptString(text),decrypt:bytes=>safeStorage.decryptString(bytes)},openExternal:testing?async()=>{throw new Error('Login real desativado em QA.');}:url=>shell.openExternal(url)};
@@ -334,11 +349,17 @@ async function start() {
     event.preventDefault(); if (closing) return; closing = true;
     send('window:closing');
     // A renderer that is hung must not force data loss by a timed auto-close.
-    setTimeout(async()=>{if(readyToClose || !win || win.isDestroyed())return;const result=await dialog.showMessageBox(win,{type:'warning',buttons:['Continuar aguardando','Fechar com os dados já salvos'],defaultId:0,cancelId:0,message:'O editor está demorando para concluir o salvamento.'});if(result.response===1){readyToClose=true;await stopNotion();await sync.close();win.close();}else closing=false;},12000).unref();
+    setTimeout(async()=>{if(readyToClose || !win || win.isDestroyed())return;const result=await dialog.showMessageBox(win,{type:'warning',buttons:['Continuar aguardando','Fechar com os dados já salvos'],defaultId:0,cancelId:0,message:'O editor está demorando para concluir o salvamento.'});if(result.response===1){readyToClose=true;await aiWorkspace.close();await stopNotion();await sync.close();win.close();}else closing=false;},12000).unref();
   });
   await win.loadURL('notes://app/index.html');
   void sync.syncIfDue();
   if (testing) global.__notesTest = {store,get sync(){return sync;},assets,dataDir,importWorkspace,
+    createAiRuntime(){return new AiRuntime({dataDir,testing:true,emit:event=>send('ai:progress',event)});},
+    async setAiRuntime(runtime){
+      if(aiWorkspace.operation)throw new Error('QA: aguarde a operação de IA.');
+      if(!['run','status','settings','configure','discover','cancel','close'].every(key=>typeof runtime?.[key]==='function'))throw new Error('QA: runtime sintético inválido.');
+      await aiWorkspace.close();aiRuntime=runtime;aiWorkspace=new AiWorkspace({store,runtime,emit:event=>send('ai:progress',event)});
+    },
     async setNotionClient(client){
       if(notionOperation)throw new Error('QA: aguarde a operação Notion.');
       if(typeof client?.callTool!=='function'||typeof client?.listTools!=='function'||typeof client?.status!=='function')throw new Error('QA: cliente sintético inválido.');

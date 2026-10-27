@@ -4,6 +4,8 @@ O notes é um projeto de [Bruno Brito](https://brunobrito.org), construído com 
 
 Este documento apresenta o processo e as evidências disponíveis no repositório. Não existe aqui um histórico integral de prompts ou uma medição da parcela de código gerada por IA.
 
+O aplicativo também oferece uma funcionalidade de IA para seus usuários: a [busca central com CLI/ACP](IA_LOCAL.md). Seu contrato de execução, contexto e ações da biblioteca está documentado separadamente; a edição visual continua disponível sem provedor de IA.
+
 ## Da intenção ao contrato
 
 O ponto de partida visual é [Notas.html](../Notas.html). A evolução para um aplicativo desktop introduz persistência, importação, edição visual, gerenciamento de janelas e sincronização. As regras de trabalho estão em [AGENTS.md](../AGENTS.md): marca, fidelidade visual, preservação de dados, limites da automação e critérios da entrega portable.
@@ -17,6 +19,7 @@ Essas regras tornam pedidos de produto verificáveis. Alguns exemplos:
 | Ter controle sobre envio | Ctrl+S salva localmente; digitar/importar/focar/fechar não inicia upload. | [Integração UI](../tests/ui-smoke.cjs), [GitHub Sync](../tests/github-sync.test.cjs). |
 | Preservar trabalho em conflito | A decisão precisa corresponder à comparação atual; alterações concorrentes não são descartadas silenciosamente. | [Sync](../tests/github-sync.test.cjs), [cancelamento](../tests/github-sync-cancel.test.cjs), [UI GitHub](../tests/github-ui.cjs). |
 | Migrar com conferência | Autenticação oficial, inventário retomável e aviso de lacunas antes de aplicar, sem afirmar acesso a páginas fora das permissões. | [Contrato da migração](IMPORTACAO_NOTION.md), [cliente](../tests/notion-client.test.cjs), [motor](../tests/notion-migration.test.cjs), [Electron](../tests/notion-migration-ui.cjs). |
+| Usar IA nas notas com controle | Provedor local configurável, ações tipadas e guarda contra resposta obsoleta, com desfazer que conserva edições posteriores. | [Contrato da IA](IA_LOCAL.md), [runtime](../tests/ai-runtime.test.cjs), [ações](../tests/ai-workspace.test.cjs), [Electron](../tests/ai-ui.cjs). |
 | Entregar algo executável | Gerar e abrir o portable real, salvar, fechar e reabrir um perfil isolado. | [Smoke do portable](../tests/portable-smoke.cjs). |
 
 ## Responsabilidades explícitas
@@ -54,6 +57,7 @@ Os comandos estão no [guia de desenvolvimento](DESENVOLVIMENTO.md). Os critéri
 - Há assistência de IA no desenvolvimento e na documentação. Não há base para publicar percentuais de autoria, produtividade ou economia de tempo.
 - Testes exercitam cenários definidos; não representam certificação de segurança nem garantia de ausência de falhas.
 - Fluxos Git usam remotos bare locais em QA. Login, instalação de ferramentas e tarefa Windows usam fixtures, sem operar a conta ou o sistema real do usuário.
+- Testes da IA usam transportes e provedores sintéticos; não medem a qualidade de um modelo real nem comprovam acesso de uma conta a todos os modelos, agentes e esforços.
 - O registro histórico de validação contém resultados de rodadas anteriores, identificados como tais. A existência de CI não implica uma execução remota aprovada.
 - O logo aprovado foi produzido com o imagegen integrado, conforme o registro anterior do projeto. A referência visual e as fontes são creditadas em [componentes de terceiros](../THIRD_PARTY_NOTICES.md).
 

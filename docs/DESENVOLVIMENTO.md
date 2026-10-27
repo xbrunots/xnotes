@@ -44,6 +44,7 @@ Leia [AGENTS.md](../AGENTS.md) antes de alterar a interface. A importação de [
 | `npm run test:github-ui` | Onboarding, estilos de nota, comparação de conflitos e propagação entre perfis. |
 | `npm run test:code-ui` | Colagem, Monaco, linguagens, histórico, persistência e workers locais. |
 | `npm run test:notion-ui` | ZIP HTML/Markdown e migração conectada com MCP sintético, retomada, pendências e persistência no Electron. |
+| `npm run test:ai-ui` | Busca central, configuração de IA e ações da biblioteca no Electron com provedor sintético, sem CLI/modelo real. |
 | `npm run dist` | Compila e gera somente o portable Windows x64. |
 | `npm run test:portable` | Executa o EXE final, verifica operações reais e reabre o mesmo perfil temporário. |
 | `npm run docs:screenshots` | Compila e captura dois temas no Electron com conteúdo fictício. |
@@ -61,6 +62,7 @@ npm run test:workspace
 npm run test:github-ui
 npm run test:code-ui
 npm run test:notion-ui
+npm run test:ai-ui
 npm run dist
 npm run test:portable
 ```
@@ -70,6 +72,8 @@ npm run test:portable
 Os testes criam perfis temporários com `NOTES_TEST=1` e `NOTES_TEST_DATA_DIR` definido explicitamente. O aplicativo recusa QA sem essa pasta; não recorre à biblioteca real. As integrações usam Git real contra remotos bare locais. Ferramentas, conta GitHub e tarefas agendadas são simuladas nas suas fronteiras.
 
 Não use bibliotecas pessoais como fixtures. Durante QA, não faça login, não instale ferramentas Git/CLI pelo onboarding, não crie repositórios GitHub e não registre tarefas Windows reais. Para validar uma mudança nessas integrações, use os adaptadores e cenários existentes.
+
+Para IA, [ai-runtime.test.cjs](../tests/ai-runtime.test.cjs) injeta processos controlados e [ai-workspace.test.cjs](../tests/ai-workspace.test.cjs) usa respostas estruturadas sintéticas. O modo de teste bloqueia CLIs reais sem injeção explícita. [ai-ui.cjs](../tests/ai-ui.cjs) verifica a integração no Electron com um provedor fictício, sem usar login existente ou consultar um modelo. Não use um agente real para tornar um teste de UI dependente de conta, rede ou cobrança. O guia [IA local](IA_LOCAL.md) documenta configuração e contrato.
 
 Evidências de UI e do portable ficam em `%TEMP%/notes-qa` por padrão. Alguns testes aceitam `NOTES_QA_DIR`; o teste do portable usa a pasta padrão. Perfis temporários podem ser retidos para diagnóstico. Não publique esses diretórios inteiros: selecione somente evidências revisadas e sem caminhos ou dados privados.
 

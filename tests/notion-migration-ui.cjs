@@ -11,7 +11,7 @@ const { waitPage } = require('./helpers/wait-page.cjs');
 
 async function openImport(page) {
   await page.keyboard.press('Control+k');
-  const search = page.getByRole('textbox', { name: 'Buscar notas, sessões ou comandos', exact: true });
+  const search = page.getByRole('combobox', { name: 'Buscar notas, grupos, sessões ou comandos', exact: true });
   await search.fill('Importar do Notion'); await search.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Importar do Notion', exact: true });
   await dialog.waitFor(); return dialog;

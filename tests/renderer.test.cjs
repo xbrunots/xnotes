@@ -45,10 +45,16 @@ test('atualização remota no callback React é drenada mesmo sem nova edição'
   const callbacks=[];let hold=true;
   editor.setState=(patch,callback)=>{editor.state={...editor.state,...patch};if(hold)callbacks.push(callback);else callback?.();};
   editor.state.notes=editor.state.notes.map((n,i)=>i? n:{...n,body:'local'});
-  const saving=editor.flush();const local=structuredClone(editor.state);for(const key of ['driveStatus','drives','dialog','dialogName','toast','saveError','busy','w','palette','pq','psel','editing'])delete local[key];
+  const saving=editor.flush();const local=structuredClone(editor.snapshotForSave());
   resolveSave(local);await new Promise(resolve=>setImmediate(resolve));
   const remote=structuredClone(local);remote.notes[0].body='remoto chegou após o save';
   editor.receive(remote);hold=false;callbacks.shift()();await saving;
   assert.equal(editor.state.notes[0].body,'remoto chegou após o save');assert.equal(editor.pendingRemote,null);
   clearTimeout(editor.saveTimer);
+});
+test('provider paths and AI interaction state never enter synchronized workspace',()=>{
+  const editor=harness(snapshot=>Promise.resolve(snapshot));
+  editor.state.aiStatus={settings:{provider:'acp',command:'C:\\example\\agent.exe',args:['--acp']}};
+  editor.state.aiResponse='Resposta privada desta sessão';editor.state.aiChanges=[{label:'Exemplo'}];
+  const saved=editor.snapshotForSave();assert.equal(saved.aiStatus,undefined);assert.equal(saved.aiResponse,undefined);assert.equal(saved.settingsSection,undefined);
 });

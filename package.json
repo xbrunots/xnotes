@@ -1,7 +1,7 @@
 {
   "name": "notes",
   "version": "1.0.0",
-  "description": "Editor visual de notas para Windows: dados locais, Monaco offline e sincronização GitHub. Um projeto de Bruno Brito com assistência de IA.",
+  "description": "Editor visual de notas para Windows com IA via CLI/ACP, dados locais, Monaco offline e sincronização GitHub. Um projeto de Bruno Brito.",
   "private": true,
   "author": {
     "name": "Bruno Brito",
@@ -17,7 +17,7 @@
   },
   "keywords": [
     "notes", "local-first", "electron", "react", "tiptap", "monaco-editor",
-    "windows", "portable", "github-sync", "ai-assisted", "productivity"
+    "windows", "portable", "github-sync", "ai-assisted", "local-ai", "acp", "productivity"
   ],
   "engines": {
     "node": ">=24 <25"
@@ -37,6 +37,7 @@
     "test:github-ui": "npm run build:ui && node tests/github-ui.cjs",
     "test:code-ui": "npm run build:ui && node tests/code-widget-ui.cjs",
     "test:notion-ui": "npm run build:ui && node tests/notion-import-ui.cjs && node tests/notion-migration-ui.cjs",
+    "test:ai-ui": "npm run build:ui && node tests/ai-ui.cjs",
     "test:portable": "node tests/portable-smoke.cjs",
     "dist": "npm run build:ui && node scripts/package-portable.cjs",
     "dist:dir": "npm run build:ui && electron-builder --win --dir --x64"

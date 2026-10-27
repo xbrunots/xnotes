@@ -49,6 +49,8 @@ jobs:
         run: npm run test:code-ui
       - name: Importação e migração Notion
         run: npm run test:notion-ui
+      - name: Busca e IA local
+        run: npm run test:ai-ui
       - name: Gerar portable
         run: npm run dist
       - name: Executar o portable final

@@ -506,12 +506,15 @@ class WorkspaceStore extends EventEmitter {
     await atomicWriteEncoded(file, encodedCheckpoint);
   }
 
-  async save(next, { base } = {}) {
+  async save(next, { base, assertCurrent } = {}) {
     // Capture now, before await/queue: callers may keep typing into their object.
     const captured = validateSnapshot(next);
     const capturedBase = base === undefined ? null : validateSnapshot(base);
     return this._enqueue(async () => {
       await this.init();
+      // Main-process transactions may reject a stale AI proposal/undo inside
+      // the same queue that commits it, before clocks or files are changed.
+      if (assertCurrent) assertCurrent(this.snapshot);
       const before = entitiesOf(capturedBase || this._snapshot), after = entitiesOf(captured);
       const current = entitiesOf(this._snapshot), heads = headsOf(this._records);
       const candidate = new Map(this._records);

@@ -18,6 +18,7 @@ import {GitHubIcon,GitHubPanel,GitHubConflictPanel,githubWorking} from './github
 import {convertSelectionToCode,insertCodeBlock} from './code-commands';
 import {pastedCodeLanguage} from './code-languages';
 import {NotionImport} from './notion-import';
+import {WorkspaceSearch,AiSettings,SearchIcon,AiIcon} from './ai-ui';
 
 const PERSISTED = ['panelSizes','appearance','noteDisplay','theme','themePreset','themeChoices','accent','motion','blur','groups','notes','openBy','focusBy','session','view','tag','expanded','layout','sidebar'];
 const serial = state => Object.fromEntries(PERSISTED.filter(key=>key in state).map(key=>[key,state[key]]));
@@ -73,7 +74,7 @@ class Modal extends React.Component {
 export class Notes extends ReferenceNotes {
   constructor(props){
     super(props);
-    this.state={...this.state,...serial(props.snapshot),githubStatus:props.sync,dialog:props.onboarding?'github':null,dialogName:'',toast:null,saveError:null,busy:false};
+    this.state={...this.state,...serial(props.snapshot),githubStatus:props.sync,aiStatus:props.ai,aiMode:'search',aiBusy:false,aiProgress:'',aiResponse:'',aiError:'',aiChanges:[],aiCanUndo:false,settingsSection:'general',dialog:props.onboarding?'github':null,dialogName:'',toast:null,saveError:null,busy:false};
     this.persistentExtras=clone(extras(props.snapshot));
     this.confirmed=clone(props.snapshot); this.savePromise=null; this.pendingRemote=null; this.mounted=false;
   }
@@ -173,7 +174,7 @@ export class Notes extends ReferenceNotes {
   }
   componentDidMount(){
     this.mounted=true; super.componentDidMount();
-    this.off=[window.notes.onWorkspace(this.receive),window.notes.onSync(this.receiveGitHubStatus),window.notes.onAction(this.onAction),window.notes.onBeforeClose(this.beforeClose),window.notes.onImportProgress(progress=>this.setState({importProgress:progress}))];
+    this.off=[window.notes.onWorkspace(this.receive),window.notes.onSync(this.receiveGitHubStatus),window.notes.onAction(this.onAction),window.notes.onBeforeClose(this.beforeClose),window.notes.onImportProgress(progress=>this.setState({importProgress:progress})),window.notes.onAiProgress(event=>{if(this.mounted&&event?.type==='status')this.setState({aiProgress:event.message||'Gerando resposta…'});})];
     if(this.props.onboarding){this.inspectGitHub();window.notes.dismissOnboarding().catch(()=>{});}
     if(this.state.githubStatus.state==='conflict')this.loadGitHubConflicts();
     if(this.props.recovery || this.props.warning)this.showToast(this.props.warning || 'Uma cópia de segurança foi recuperada. Os arquivos originais foram preservados.',7000);
@@ -237,7 +238,82 @@ export class Notes extends ReferenceNotes {
   beforeClose=async()=>{try{await this.flushAll();window.notes.finishClose();}catch(error){this.showToast('Não foi possível salvar: '+error.message,8000);}};
   run=async task=>{this.setState({busy:true});try{return await task();}catch(error){this.showToast(error.message,6500);}finally{this.setState({busy:false});}};
   showToast=(text,duration=3400)=>{clearTimeout(this.toastTimer);this.setState({toast:text});this.toastTimer=setTimeout(()=>{if(this.mounted)this.setState({toast:null});},duration);};
-  openDialog=type=>{this.setState({dialog:type,themeNoteId:null,palette:false,dialogName:'',navigationOpen:false});if(type==='github')this.inspectGitHub();};
+  openDialog=type=>{this.setState({dialog:type,themeNoteId:null,palette:false,dialogName:'',navigationOpen:false,...(type==='settings'?{settingsSection:'general'}:{})});if(type==='github')this.inspectGitHub();};
+  openAiSettings=()=>{
+    this.setState({dialog:'settings',settingsSection:'ai',themeNoteId:null,palette:false,navigationOpen:false});
+    window.notes.aiStatus().then(aiStatus=>{if(this.mounted)this.setState({aiStatus});}).catch(error=>this.showToast(error.message));
+  };
+  configureAi=async settings=>{
+    await window.notes.configureAi(settings);
+    const aiStatus=await window.notes.aiStatus();
+    if(this.mounted)this.setState({aiStatus});
+  };
+  discoverAi=async()=>{
+    this.setState({aiSettingsBusy:true,aiDiscoveryError:''});
+    try{const aiDiscovery=await window.notes.discoverAi();if(this.mounted)this.setState({aiDiscovery,aiStatus:await window.notes.aiStatus()});}
+    catch(error){if(this.mounted)this.setState({aiDiscoveryError:error.message});}
+    finally{if(this.mounted)this.setState({aiSettingsBusy:false});}
+  };
+  submitAi=async prompt=>{
+    if(this.aiRequest||this.state.aiBusy||!prompt.trim())return;
+    const request={cancelled:false};this.aiRequest=request;
+    this.setState({aiBusy:true,aiCanCancel:true,aiMode:'ai',aiError:'',aiResponse:'',aiChanges:[],aiProgress:'Salvando suas edições locais…'});
+    try{
+      await this.flushAll();if(request.cancelled)return;
+      const noteId=this.state.focusBy[this.state.session];
+      const result=await window.notes.runAi({prompt,sessionId:String(this.state.session),...(noteId?{focusedNoteId:String(noteId)}:{})});
+      if(request.cancelled)return;
+      let applied={changes:[],canUndo:result.canUndo};
+      if(result.planId){
+        // Flush text entered while the provider was answering before checking
+        // its proposal against the current durable workspace.
+        await this.flushAll();if(request.cancelled)return;
+        this.setState({aiCanCancel:false,aiProgress:'Salvando as alterações na biblioteca…'});
+        applied=await window.notes.applyAi(result.planId);
+        if(applied.snapshot)this.receive(applied.snapshot);
+      }
+      const aiStatus=await window.notes.aiStatus();
+      if(this.mounted)this.setState({aiStatus,aiResponse:result.message,aiChanges:applied.changes||[],aiCanUndo:!!applied.canUndo,pq:''});
+    }catch(error){if(this.mounted&&!request.cancelled)this.setState({aiError:error.message});}
+    finally{if(this.aiRequest===request){this.aiRequest=null;if(this.mounted)this.setState({aiBusy:false,aiProgress:''});}}
+  };
+  cancelAi=async()=>{
+    if(!this.aiRequest||!this.state.aiCanCancel)return;
+    if(this.aiRequest)this.aiRequest.cancelled=true;
+    this.setState({aiProgress:'Cancelando…'});
+    try{await window.notes.cancelAi();if(this.mounted)this.setState({aiResponse:'Pedido cancelado.',aiError:''});}
+    catch(error){if(this.mounted)this.setState({aiError:error.message});}
+    finally{if(this.mounted)this.setState({aiBusy:false,aiProgress:''});}
+  };
+  undoAi=async()=>{
+    this.setState({aiBusy:true,aiCanCancel:false,aiError:'',aiProgress:'Restaurando a versão anterior…'});
+    try{await this.flushAll();const result=await window.notes.undoAi();this.receive(result.snapshot);this.setState({aiCanUndo:false,aiChanges:[],aiResponse:'Alterações da IA desfeitas.'});}
+    catch(error){this.setState({aiError:error.message});}
+    finally{if(this.mounted)this.setState({aiBusy:false,aiProgress:''});}
+  };
+  clearAi=async()=>{
+    try{await window.notes.clearAiHistory();this.setState({aiResponse:'',aiError:'',aiChanges:[],pq:''});}
+    catch(error){this.showToast(error.message);}
+  };
+  searchRows=()=>{
+    const q=this.state.pq.trim().toLocaleLowerCase('pt-BR'),rows=[],sections=[];
+    const allSessions=this.state.groups.flatMap(group=>group.sessions.map(session=>({...session,group})));
+    const location=note=>allSessions.find(session=>session.id===note.s);
+    const showNote=note=>this.setState(state=>({session:note.s,view:'session',tag:null,editing:null,openBy:{...state.openBy,[note.s]:[...new Set([...(state.openBy[note.s]||[]),note.id])]},focusBy:{...state.focusBy,[note.s]:note.id}}));
+    const notes=this.state.notes.filter(note=>!note.deletedAt&&(!q||(note.title+'\n'+note.body).toLocaleLowerCase('pt-BR').includes(q))).slice(0,q?15:5).map(note=>({id:note.id,label:note.title||'Sem título',sub:location(note)?location(note).group.name+' › '+location(note).name:'',isNote:true,run:()=>showNote(note)}));
+    if(notes.length)sections.push([q?'Notas':'Recentes',notes]);
+    if(q){
+      const found=allSessions.filter(session=>(session.name+' '+session.group.name).toLocaleLowerCase('pt-BR').includes(q)).map(session=>({id:session.id,label:session.name,sub:session.group.name,isSession:true,run:()=>this.selectSession(session.id)}));
+      if(found.length)sections.push(['Sessões',found]);
+      const groups=this.state.groups.filter(group=>group.name.toLocaleLowerCase('pt-BR').includes(q)).map(group=>({id:group.id,label:group.name,sub:group.sessions.length+' sessões',isGroup:true,run:()=>{this.setState(state=>({expanded:{...state.expanded,[group.id]:true}}));if(group.sessions[0])this.selectSession(group.sessions[0].id);}}));
+      if(groups.length)sections.push(['Grupos',groups]);
+    }
+    const actions=[{label:'Nova nota',sub:'Na sessão atual',run:()=>this.newNote()},...this.extraCommands()].filter(action=>!q||action.label.toLocaleLowerCase('pt-BR').includes(q)).map(action=>({...action,isAction:true,isCreation:/^(Nova |Novo |Criar )/.test(action.label)}));
+    if(q&&!this.state.notes.some(n=>!n.deletedAt&&n.title.toLocaleLowerCase('pt-BR')===q))actions.push({label:'Criar nota “'+this.state.pq.trim()+'”',sub:'Na sessão atual',isAction:true,isCreation:true,run:()=>this.newNote(this.state.pq.trim())});
+    if(actions.length)sections.push(['Ações',actions]);
+    for(const [label,items] of sections){rows.push({isHeader:true,label});for(const item of items)rows.push({...item,onClick:()=>{this.setState({palette:false,psel:0});item.run();}});}
+    return rows;
+  };
   closeDialog=()=>this.setState({dialog:null});
   newNote(title,body){
     const noteId=id('n');
@@ -301,6 +377,7 @@ export class Notes extends ReferenceNotes {
     return [
       ['GitHub','Repositório privado, histórico e sincronização diária',()=>this.openDialog('github')],
       ['Configurações','Aparência, backups e lixeira',()=>this.openDialog('settings')],
+      ['Configurar IA','Provedor, agente e esforço nesta máquina',this.openAiSettings],
       ['Novo grupo','Organizar suas sessões',()=>this.openDialog('new-group')],
       ['Importar do Notion','Páginas, bancos de dados e anexos',()=>this.openDialog('import-notion')],
       ['Importar do Obsidian','Cofre, notas, links e anexos',()=>this.openDialog('import-obsidian')],
@@ -310,6 +387,7 @@ export class Notes extends ReferenceNotes {
   renderVals(){
     const values=super.renderVals();
     values.isDesktop=false;
+    values.paletteOpen=false;
     values.pRows=values.pRows.map(row=>({...row,isCreation:row.isAction&&/^(Nova |Novo |Criar |Adicionar |Abrir nota do dia)/.test(row.label)}));
     values.vars={...values.vars,...themeVariables(resolveTheme(this.state.themePreset,this.theme()))};
     const pins=new Set(this.state.notes.filter(n=>n.pinned).map(n=>n.id));
@@ -344,11 +422,13 @@ export class Notes extends ReferenceNotes {
       <button className="titlebar-settings" aria-pressed={this.state.sidebar!==false} aria-label="Alternar barra lateral" title="Barra lateral (Ctrl+B)" onClick={()=>this.setState(st=>({sidebar:!st.sidebar}))}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg></button>
       <div className="app-brand"><img src="./assets/icon.png" alt=""/><span>notes</span></div>
       <div className="titlebar-drag-space"/>
+      <button className="titlebar-search" title="Buscar ou pedir à IA (Ctrl+K)" aria-label="Buscar ou pedir à IA" aria-haspopup="dialog" aria-expanded={this.state.palette} onClick={()=>this.setState({palette:true,pq:'',psel:0,navigationOpen:false})}><SearchIcon size={14}/><span>Buscar ou pedir à IA…</span><kbd>Ctrl K</kbd></button>
+      <div className="titlebar-actions">
       <button className="titlebar-settings" title="Nova nota (Alt+N)" aria-label="Nova nota" data-create="note" onClick={()=>this.newNote()}><PlusIcon/></button>
-      <button className="titlebar-settings" title="Buscar ou executar (Ctrl+K)" aria-label="Buscar notas" onClick={()=>this.setState({palette:true,pq:'',psel:0,navigationOpen:false})}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg></button>
       {this.renderGitHubControl()}
       <button className="titlebar-settings" title="Configurações (Ctrl+,)" aria-label="Abrir configurações" onClick={()=>this.openDialog('settings')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="m9.5 3-.6 2.2-2 .9-2-.6-2.4 4.1L4 11.2v1.7l-1.5 1.7L5 18.7l2-.6 2 .9.5 2.2h5l.6-2.2 2-.9 2 .6 2.4-4.1-1.5-1.7v-1.7l1.5-1.6L19 5.5l-2 .6-2-.9L14.5 3Z"/><circle cx="12" cy="12" r="3"/></svg></button>
       <button className="titlebar-settings" title="Menu do aplicativo" aria-label="Menu do aplicativo" onClick={event=>this.showAppMenu(event,'all')}><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg></button>
+      </div>
     </header>;
   }
   renderNoteEditor(p){
@@ -396,6 +476,8 @@ export class Notes extends ReferenceNotes {
   renderSettings(){
     const trash=this.state.notes.filter(n=>n.deletedAt);
     return <Modal title="Configurações" onClose={this.closeDialog}>
+      <nav className="settings-navigation" aria-label="Seções das configurações"><button aria-pressed={this.state.settingsSection!=='ai'} onClick={()=>this.setState({settingsSection:'general'})}>Aparência e dados</button><button aria-pressed={this.state.settingsSection==='ai'} onClick={()=>this.setState({settingsSection:'ai'})}><AiIcon size={15}/>IA</button></nav>
+      {this.state.settingsSection==='ai'?<AiSettings value={this.state.aiStatus?.settings} status={{...this.state.aiStatus,error:this.state.aiDiscoveryError||this.state.aiStatus?.lastError}} discovery={this.state.aiDiscovery} busy={this.state.aiSettingsBusy||this.state.aiBusy} onSave={this.configureAi} onDiscover={this.discoverAi}/>:<>
       <LayoutPicker value={this.state.appearance || 'standard'} onChange={appearance=>this.setState({appearance})}/>
       <ThemePicker value={resolveTheme(this.state.themePreset,this.theme()).id} onChange={this.chooseTheme}/>
       <div className="settings-row"><span><strong>Cor de destaque</strong><small>O mesmo vidro, com a sua cor.</small></span><ColorPicker value={this.state.accent || 'Azul'} onChange={accent=>this.setState({accent})}/></div>
@@ -404,6 +486,7 @@ export class Notes extends ReferenceNotes {
       <button className="settings-link" onClick={()=>this.openDialog('github')}><GitHubIcon/>GitHub e sincronização<span>{['disconnected','auth-required'].includes(this.state.githubStatus.state)?'Conectar':'Gerenciar'}</span></button>
       <div className="settings-section"><h2>Seus dados</h2><p className="muted">O backup inclui todas as notas, inclusive a lixeira. Importar adiciona os dados à biblioteca atual.</p><div className="dialog-actions"><button disabled={this.state.busy} onClick={()=>this.run(async()=>{await this.flushAll();if(await window.notes.exportBackup())this.showToast('Backup exportado.');})}>Exportar backup…</button><button disabled={this.state.busy} onClick={()=>this.run(async()=>{await this.flushAll();const count=await window.notes.importBackup();if(count!==null)this.showToast(count+' notas importadas.');})}>Importar backup…</button><button onClick={()=>this.openDialog('import-notion')}>Do Notion…</button><button onClick={()=>this.openDialog('import-obsidian')}>Do Obsidian…</button></div></div>
       <div className="settings-section"><h2>Lixeira <span className="muted">· {trash.length}</span></h2>{trash.length?<div className="trash-list">{trash.map(note=><div key={note.id}><span>{note.title || 'Sem título'}</span><button onClick={()=>this.restoreNote(note.id)}>Restaurar</button></div>)}</div>:<p className="muted">As notas excluídas aparecem aqui para restauração.</p>}</div>
+      </>}
       <footer><span className="version">notes {this.props.version} · Windows</span><button onClick={()=>this.openDialog('shortcuts')}>Atalhos</button><button className="primary" onClick={this.closeDialog}>Concluir</button></footer>
     </Modal>;
   }
@@ -411,6 +494,7 @@ export class Notes extends ReferenceNotes {
     const reference=super.render();
     return <>{reference}<div className="notes-overlays" style={this.materialVars}>
       {this.renderTitlebar()}
+      <WorkspaceSearch open={this.state.palette} inputRef={this.pInput} query={this.state.pq} onQuery={pq=>this.setState({pq,psel:0})} rows={this.state.palette?this.searchRows():[]} selected={this.state.psel} onSelect={psel=>this.setState({psel})} onClose={()=>this.setState({palette:false})} onSettings={this.openAiSettings} mode={this.state.aiMode} onMode={aiMode=>this.setState({aiMode,psel:0})} ai={{busy:this.state.aiBusy,canCancel:this.state.aiCanCancel,progress:this.state.aiProgress,response:this.state.aiResponse,error:this.state.aiError,changes:this.state.aiChanges,canUndo:this.state.aiCanUndo,providerLabel:({codex:'Codex CLI',claude:'Claude Code',acp:'Agente ACP'})[this.state.aiStatus?.settings?.provider]||'IA via CLI / ACP'}} onSubmit={this.submitAi} onCancel={this.cancelAi} onUndo={this.undoAi} onClear={this.clearAi}/>
       {this.state.dialog==='github'&&this.renderGitHub()}
       {this.state.dialog==='github-conflicts'&&<Modal title="Comparar versões" onClose={this.closeDialog}><GitHubConflictPanel key={this.state.conflictSession?.sessionId} session={this.state.conflictSession} busy={this.state.busy} onResolve={this.resolveGitHubConflicts}/></Modal>}
       {this.state.dialog==='settings'&&this.renderSettings()}

@@ -1,6 +1,6 @@
 # Guia do notes
 
-Instalação portable, edição visual, organização, importações, sincronização e recuperação. Para compilar ou contribuir, veja [Desenvolvimento](DESENVOLVIMENTO.md) e [Contribuição](../CONTRIBUTING.md).
+Instalação portable, edição visual, organização, IA local, importações, sincronização e recuperação. Para compilar ou contribuir, veja [Desenvolvimento](DESENVOLVIMENTO.md) e [Contribuição](../CONTRIBUTING.md).
 
 ## Executar
 
@@ -9,6 +9,16 @@ Abra **`portable/notes-1.0.0-Windows-x64-portable.exe`**. Não é necessário in
 Somente portable é gerado. O projeto não possui alvo de instalador. A pasta `portable/win-unpacked` é intermediária; o arquivo de entrega é o `.exe` portable na raiz de `portable/`.
 
 O programa guarda sua biblioteca em `notes-data` ao lado do portable. Em uma pasta sem permissão de gravação, utiliza `%APPDATA%/notes`. A cópia local permite trabalhar sem Internet. Transporte também as pastas da biblioteca ou conecte a mesma conta GitHub no outro PC.
+
+## Busca central e IA
+
+Clique no **campo no centro da barra da janela** ou pressione **Ctrl+K**. Em **Buscar**, encontre notas, grupos, sessões e comandos; setas e Enter navegam pelos resultados. Em **Pedir à IA**, descreva o que deseja criar, editar ou organizar na biblioteca.
+
+A **engrenagem da busca** abre Configurações diretamente em **Inteligência artificial**. Escolha o provedor, agente e esforço. Em Avançado, há executável, modelo opcional e argumentos ACP separados por linha. Salve antes de **Detectar CLIs**; depois, ajuste as opções anunciadas e salve novamente. O notes reutiliza um CLI instalado e autenticado; não instala provedores nem inicia login.
+
+Pedidos como “Crie o grupo Estudos com uma sessão Leitura” ou “Acrescente próximos passos à nota aberta” geram ações validadas e salvas localmente. A resposta mostra as mudanças, **Cancelar** interrompe uma consulta e **Desfazer alterações** reverte o último lote se as entidades afetadas ainda não mudaram. Excluir preserva notas e anexos na lixeira; IA não dispara envio ao GitHub.
+
+O CLI executa localmente, mas o modelo pode usar a nuvem do provedor. Configurações de IA ficam neste computador, fora da biblioteca sincronizada. Veja [IA local](IA_LOCAL.md) para os provedores suportados, o contexto enviado, exemplos e limites.
 
 ## GitHub
 
@@ -70,7 +80,7 @@ Limites por importação: 20 mil entradas, 1 GiB de arquivos, 256 MiB por arquiv
 
 | Atalho | Ação |
 |---|---|
-| Ctrl+K | Buscar notas, sessões e comandos |
+| Ctrl+K | Abrir busca central: Buscar ou Pedir à IA |
 | Alt+N | Nova nota |
 | Ctrl+S | Salvar localmente |
 | Ctrl+Shift+S | Sincronizar GitHub agora |

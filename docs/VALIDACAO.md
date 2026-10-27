@@ -2,6 +2,32 @@
 
 Este registro separa a preparação pública atual dos marcos anteriores. Resultados históricos não significam reexecução no estado atual do código. Uma configuração de CI também não representa uma execução remota aprovada.
 
+## Busca central e IA local por CLI/ACP — 27/10/2026
+
+A busca central reúne notas, grupos, sessões e comandos com o modo **Pedir à IA**. A engrenagem abre diretamente a seção IA, com provedor, agente, esforço e opções avançadas locais. O [guia da integração](IA_LOCAL.md) descreve uso, contrato e limites.
+
+| Verificação | Resultado e escopo |
+| --- | --- |
+| `npm test` | **306/306 passaram**, zero falhas ou testes ignorados, em 498.232,6125 ms. Inclui 20 testes do runtime, 20 das ações de IA e a fronteira de preferências no renderer. |
+| `node --test tests/renderer.test.cjs` | **4/4 passaram** novamente após os ajustes finais de interface. Autosave, recebimento remoto e exclusão das preferências de IA do workspace preservados. |
+| `npm run test:ui`, `test:layout`, `test:workspace`, `test:github-ui`, `test:code-ui`, `test:notion-ui` | Aprovados no Electron real em perfis temporários, incluindo editor visual, Monaco, layouts, redimensionamento, sincronização e importações. A sequência final de layout até IA foi executada sem suítes de interface concorrentes. |
+| `npm run test:ai-ui` | **13 verificações passaram** na execução final: centro em 1440/960 px; QA bloqueia CLIs reais; atalho para IA; configuração; criação de grupo/sessão/nota; edição/desfazer; edição concorrente; cancelamento; ação inválida; limpar conversa; desfazer criação após limpar; ausência de erros/rede no renderer; persistência após reiniciar. |
+| Revisão independente | Corrigidos e reproduzidos: desfazer não inclui edições independentes que entraram antes na fila; IDs numéricos mantêm abas e proteção contra exclusão obsoleta; posição das notas preservada. Revisão final aceitou negociação ACP, histórico em memória e exclusão mútua entre aplicar/desfazer. |
+| Documentação | **20 Markdown e 393 links/recursos locais** válidos; capturas da busca e das configurações feitas no Electron com dados e provedor sintéticos. |
+| `npm run dist` e conferência | Portable Windows x64 gerado. **22 arquivos do ASAR** iguais às fontes/build, incluindo IA, Notion, armazenamento, renderer, cinco workers e avisos. Metadados de produção do pacote conferidos separadamente; perfis privados, configurações locais e exportações pessoais ausentes. |
+| `npm run test:portable` | **55 verificações passaram** sobre o novo EXE: abre, salva, fecha e reabre; inclui busca central, atalho de IA, configuração/persistência de provedor e agente, bloqueio de CLI real em QA, Notion e Monaco offline. |
+
+### Portable com IA validado
+
+- Arquivo: `portable/notes-1.0.0-Windows-x64-portable.exe`.
+- Tamanho: **137.490.651 bytes**.
+- SHA-256: `d9857462e4cc6a81eb8f3550b5610750065c10959b5a2b4b710e219b77100b12`.
+- Validação concluída: `2026-10-27T22:03:37.724Z`.
+- Checksum: `portable/SHA256SUMS.txt`.
+- Evidência local: `%TEMP%/notes-qa/portable-validation.json`.
+
+Não houve inferência, autenticação ou instalação real de provedores nos testes. Processos e respostas de modelo são controlados; a compatibilidade final com a conta autenticada depende do CLI instalado e das opções aceitas pelo modelo. CLI local pode usar inferência remota. A restrição de capacidades ACP não equivale a sandbox do executável escolhido pelo usuário. Os limites e a retenção externa estão descritos em [IA local](IA_LOCAL.md).
+
 ## Apresentação e migração Notion — 27/10/2026
 
 Apresentação do portfólio de Bruno Brito, documentação técnica, autoria, contribuição e workflow Windows. A atualização inclui conexão Notion por OAuth/PKCE, inventário retomável, importação com conferência de cobertura e preservação de notas anteriores. Veja o [guia da migração](IMPORTACAO_NOTION.md).

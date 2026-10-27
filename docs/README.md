@@ -8,6 +8,7 @@ O notes é um aplicativo de notas para Windows desenvolvido por [Bruno Brito](ht
 | [Arquitetura](ARQUITETURA.md) | Camadas, fluxo de dados, modelo persistido e fronteiras de confiança. |
 | [Especificação](ESPECIFICACAO.md) | Escopo implementado, invariantes e critérios de aceite ligados a testes. |
 | [Migração do Notion](IMPORTACAO_NOTION.md) | Conexão oficial, inventário, retomada, cobertura e exportações completas. |
+| [IA local](IA_LOCAL.md) | Busca central, CLI/ACP, configuração de provedor/agente/esforço, ações e privacidade. |
 | [Decisões](DECISOES.md) | Escolhas técnicas e de produto, benefícios e consequências. |
 | [Desenvolvimento](DESENVOLVIMENTO.md) | Ambiente, comandos, isolamento de QA, capturas e portable. |
 | [Desenvolvimento com IA](DESENVOLVIMENTO_COM_IA.md) | Direção humana, contratos para agentes, evidências e limites do relato. |

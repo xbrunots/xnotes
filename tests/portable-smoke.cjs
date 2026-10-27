@@ -62,6 +62,17 @@ async function main(){
     assert.equal(await run.page.locator('select,input[type=checkbox],input[type=range]').count(),0);
     await run.page.getByRole('button',{name:'Concluir',exact:true}).click();
     assert.equal(await run.page.locator('aside').getByRole('button',{name:/^(Claro|Escuro)$/}).count(),0);
+    const centralSearch=run.page.getByRole('button',{name:'Buscar ou pedir à IA',exact:true});
+    const searchRect=await centralSearch.boundingBox();assert.ok(Math.abs(searchRect.x+searchRect.width/2-(await run.page.evaluate(()=>innerWidth))/2)<1);
+    await centralSearch.click();await run.page.getByRole('button',{name:'Configurar IA',exact:true}).click();
+    const aiSettings=run.page.getByRole('dialog',{name:'Configurações',exact:true});
+    assert(await aiSettings.locator('#settings-ai').isVisible());
+    await aiSettings.getByRole('combobox',{name:'Provedor de IA'}).click();await aiSettings.getByRole('option',{name:'Claude Code',exact:true}).click();
+    await aiSettings.getByRole('combobox',{name:'Agente de IA'}).fill('portable-fixture-agent');await aiSettings.getByRole('combobox',{name:'Agente de IA'}).press('Escape');
+    await aiSettings.getByRole('button',{name:'Salvar IA',exact:true}).click();await aiSettings.getByRole('status').filter({hasText:'Configurações de IA salvas'}).waitFor();
+    assert.equal((await run.page.evaluate(()=>window.notes.aiStatus())).settings.agent,'portable-fixture-agent');
+    assert.equal(await run.page.evaluate(async()=>{try{await window.notes.runAi({prompt:'Teste isolado do portable'});return false;}catch(error){return /bloqueia CLIs reais/.test(error.message);}}),true);
+    await aiSettings.getByRole('button',{name:'Concluir',exact:true}).click();
     assert.ok(await run.page.locator('[data-note-main]').evaluate(main=>{const tabs=main.querySelector('.workspace-tabs'),rect=main.getBoundingClientRect(),t=tabs.getBoundingClientRect();return parseFloat(getComputedStyle(main).borderRadius)>=12&&t.top>=rect.top&&t.bottom<rect.bottom;}));
     await run.page.keyboard.press('Alt+n');
     await run.page.waitForFunction(()=>document.querySelector('article input[aria-label="Título da nota"]')?.value==='');
@@ -86,6 +97,7 @@ async function main(){
     assert.equal(await run.page.getByRole('textbox',{name:'Conteúdo da nota'}).count(),1);
     assert.equal(await run.page.locator('article[data-pane]').count(),1);
     assert.equal(await run.page.locator('[data-app-shell]').getAttribute('data-appearance'),'islands');
+    assert.equal((await run.page.evaluate(()=>window.notes.aiStatus())).settings.agent,'portable-fixture-agent');
     const createButtons=await run.page.locator('button[data-create="note"]').evaluateAll(buttons=>buttons.map(button=>[...button.querySelectorAll('svg path')].map(path=>path.getAttribute('d')).join('')));
     assert(createButtons.length>=2);assert(createButtons.every(path=>path==='M12 5v14M5 12h14'));
     assert.equal(await run.page.locator('textarea,select,input[type=checkbox],input[type=radio],input[type=range]').count(),0);
@@ -163,7 +175,7 @@ async function main(){
     assert.equal(await reopenedCode.getAttribute('data-language'),'typescript');
     assert.equal(await reopenedCode.locator('[data-code-editor]').evaluate(element=>element.__notesCodeEditor.getValue()),portableCode);
     await run.page.keyboard.press('Control+k');
-    await run.page.getByRole('textbox',{name:'Buscar notas, sessões ou comandos'}).fill('Importar do Notion');
+    await run.page.getByRole('combobox',{name:'Buscar notas, grupos, sessões ou comandos'}).fill('Importar do Notion');
     await run.page.keyboard.press('Enter');
     const notionDialog=run.page.getByRole('dialog',{name:'Importar do Notion'});await notionDialog.waitFor();
     await waitPage(run.page,()=>{const button=document.querySelector('.migration-primary-actions button.primary');return button&&!button.disabled;});
@@ -175,7 +187,7 @@ async function main(){
     await run.page.getByRole('button',{name:'Cancelar',exact:true}).click();
     await close(run);run=null;
     console.log('PASS: o mesmo portable reabre os dados persistidos e inclui a importação do Notion.');
-    await fs.writeFile(path.join(evidence,'portable-validation.json'),JSON.stringify({executable,bytes:(await fs.stat(executable)).size,validatedAt:new Date().toISOString(),dataDir:data,checks:['real-executable-launch','custom-toolbar','single-sidebar-toggle','custom-icon','native-ipc','fullscreen-f11','10-custom-themes','strong-dark-theme-persistence','custom-color-dropdown','custom-switch','custom-slider','no-browser-native-widgets','single-note-and-editor-instance','markdown-paste-to-visual-content','selection-format-popover','rich-underline-persistence','context-menu-copy-plain-text','clipboard-read-write','disk-save','close-with-flush','restart-persistence','preference-persistence','notion-import-ui','plus-creation-buttons','island-layout','island-layout-persistence','open-note-tabs','distinct-side-by-side-editors','note-display-persistence','toolbar-divider','settings-only-themes','tabs-inside-island','resize-keyboard-and-persistence','grid-masonry-cards','grid-vertical-scroll','grid-persistence','github-first-run-onboarding','github-provider','no-drive-configuration','20-note-color-presets','note-color-persistence','grid-edge-insets','footer-flush','note-color-hover-button','note-color-popover','note-color-popover-escape','monaco-offline-widget','monaco-language-context-menu','monaco-code-persistence','monaco-inherited-colors']},null,2));
+    await fs.writeFile(path.join(evidence,'portable-validation.json'),JSON.stringify({executable,bytes:(await fs.stat(executable)).size,validatedAt:new Date().toISOString(),dataDir:data,checks:['central-searchbox','ai-settings-shortcut','ai-provider-agent-configuration','ai-device-settings-persistence','ai-real-cli-qa-block','real-executable-launch','custom-toolbar','single-sidebar-toggle','custom-icon','native-ipc','fullscreen-f11','10-custom-themes','strong-dark-theme-persistence','custom-color-dropdown','custom-switch','custom-slider','no-browser-native-widgets','single-note-and-editor-instance','markdown-paste-to-visual-content','selection-format-popover','rich-underline-persistence','context-menu-copy-plain-text','clipboard-read-write','disk-save','close-with-flush','restart-persistence','preference-persistence','notion-import-ui','plus-creation-buttons','island-layout','island-layout-persistence','open-note-tabs','distinct-side-by-side-editors','note-display-persistence','toolbar-divider','settings-only-themes','tabs-inside-island','resize-keyboard-and-persistence','grid-masonry-cards','grid-vertical-scroll','grid-persistence','github-first-run-onboarding','github-provider','no-drive-configuration','20-note-color-presets','note-color-persistence','grid-edge-insets','footer-flush','note-color-hover-button','note-color-popover','note-color-popover-escape','monaco-offline-widget','monaco-language-context-menu','monaco-code-persistence','monaco-inherited-colors']},null,2));
   }catch(error){if(run){await run.page.screenshot({path:path.join(evidence,'portable-failure.png')}).catch(()=>{});await fs.writeFile(path.join(evidence,'portable-failure.json'),JSON.stringify(await run.page.evaluate(async()=>({text:document.body.innerText,active:document.activeElement?.outerHTML,focused:document.hasFocus(),clipboard:await window.notes.readClipboard(),snapshot:await window.notes.bootstrap()})).catch(()=>({closed:true})),null,2));}throw error;}
   finally{if(run){await run.page.evaluate(()=>window.notes.window('close')).catch(()=>{});await Promise.race([run.closed,new Promise(resolve=>setTimeout(resolve,4000))]);if(run.child.exitCode===null)run.child.kill();}}
 }

@@ -83,7 +83,7 @@ async function main(){
     console.log('PASS: fonte da referência preservada em documento único, sem card nem cabeçalhos repetidos.');
 
     await page.keyboard.press('Control+k');
-    const search=page.getByRole('textbox',{name:'Buscar notas, sessões ou comandos'});
+    const search=page.getByRole('combobox',{name:'Buscar notas, grupos, sessões ou comandos'});
     await search.fill('nova nota');await search.press('Enter');
     await page.waitForFunction(()=>document.querySelector('article input[aria-label="Título da nota"]')?.value==='');
     const editor=page.getByRole('textbox',{name:'Conteúdo da nota'}).last();

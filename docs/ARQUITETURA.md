@@ -23,6 +23,8 @@ flowchart TB
         IO["Importadores e backup ZIP"]
         Migration["NotionMigration\ninventário privado + cobertura + retomada"]
         Notion["NotionClient\nOAuth PKCE + MCP somente leitura"]
+        AiWorkspace["AiWorkspace\ncontexto + ações tipadas + guarda de versão"]
+        AiRuntime["AiRuntime\npreferências locais + CLI / ACP v1"]
         Sync["GitHubSync\nmerge, conflitos e recuperação"]
         Tools["GitHubTools\nGit + GitHub CLI"]
         Scheduler["GitHubScheduler\ntarefa Windows por usuário"]
@@ -31,6 +33,9 @@ flowchart TB
         App --> Migration
         Migration --> Notion
         Migration --> IO
+        App --> AiWorkspace
+        AiWorkspace --> AiRuntime
+        AiWorkspace --> Store
         IO --> Assets
         Store --> Sync
         Assets --> Sync
@@ -40,6 +45,7 @@ flowchart TB
     Disk[("Disco local")]
     Remote[("Biblioteca privada no GitHub")]
     NotionRemote["MCP oficial do Notion"]
+    Agent["CLI / agente local\nmodelo local ou serviço do provedor"]
     Vault["Cofre de credenciais do Windows"]
     Workspace <-->|"invocações e eventos"| Bridge
     Bridge <--> App
@@ -49,6 +55,7 @@ flowchart TB
     Migration --> Disk
     Notion <-->|"HTTPS / leitura autorizada"| NotionRemote
     Notion -->|"autorização cifrada no perfil"| Vault
+    AiRuntime <-->|"stdio / JSON ou JSON-RPC"| Agent
     Tools <-->|"fetch + push HTTPS"| Remote
     Tools -->|"autenticação pelo gh"| Vault
 ```
@@ -67,6 +74,7 @@ O diagrama mostra responsabilidades, não uma ordem fixa de chamadas. A API expo
 | Persistência | Validação JSON, relógios vetoriais, revisões e recuperação | [storage.cjs](../desktop/storage.cjs) |
 | Arquivos | Anexos, importações Notion/Obsidian e backups | [assets.cjs](../desktop/assets.cjs), [importers.cjs](../desktop/importers.cjs), [backups.cjs](../desktop/backups.cjs) |
 | Notion conectado | OAuth/PKCE, transporte MCP de leitura, inventário privado e conversão | [notion-client.cjs](../desktop/notion-client.cjs), [notion-migration.cjs](../desktop/notion-migration.cjs), [notion-content.cjs](../desktop/notion-content.cjs) |
+| IA local | Busca e configuração, transporte CLI/ACP, contexto e operações validadas da biblioteca | [ai-ui.jsx](../src/ai-ui.jsx), [ai-runtime.cjs](../desktop/ai-runtime.cjs), [ai-workspace.cjs](../desktop/ai-workspace.cjs) |
 | Sincronização | Coordenação, merge de entidades e arquivos, transporte Git | [github-sync.cjs](../desktop/github-sync.cjs), [github-merge.cjs](../desktop/github-merge.cjs), [github-repo.cjs](../desktop/github-repo.cjs) |
 | Integração Windows | Ferramentas oficiais portáteis, login e tarefa agendada | [github-tools.cjs](../desktop/github-tools.cjs), [github-scheduler.cjs](../desktop/github-scheduler.cjs) |
 | Build | Bundle local da interface, workers e portable x64 | [build.cjs](../scripts/build.cjs), [package-portable.cjs](../scripts/package-portable.cjs), [package.json](../package.json) |
@@ -115,6 +123,7 @@ notes-data/                 # perfil e biblioteca local
   github-recovery/         # snapshots de sincronização interrompida
   notion-credentials.enc   # autorização cifrada pelo sistema operacional
   notion-import/           # inventários privados retomáveis e downloads
+  ai/settings.json         # preferências de CLI/ACP deste dispositivo
 notes-repository/          # clone Git da biblioteca
   .notes-repository.json   # marcador e identidade da biblioteca
   revisions/
@@ -126,6 +135,18 @@ notes-tools/               # Git e GitHub CLI portáteis, quando necessários
 Se `notes-data` não puder ser criado junto do portable, [main.cjs](../desktop/main.cjs) usa a pasta de dados do aplicativo no perfil Windows. O diretório de ferramentas e o clone seguem a raiz de execução. Tokens não fazem parte dessas revisões ou dos descritores de anexos.
 
 O cliente Notion não usa a sincronização GitHub nem recebe tokens no renderer. A leitura exige ação de conectar; o inventário é conferido antes do comando de importar. A aplicação usa o mesmo `WorkspaceStore`, com marcador de plano para repetição segura. Detalhes e limites estão em [Migração do Notion](IMPORTACAO_NOTION.md).
+
+## IA local e ações da biblioteca
+
+A busca central alterna consulta local e pedidos à IA. Abrir a interface carrega somente status e preferências: a execução do provedor depende de uma ação explícita. A engrenagem abre a seção de IA das Configurações, com provedor, agente/modo, esforço e opções avançadas. Preferências de execução ficam em `ai/settings.json` no perfil do dispositivo, fora do snapshot e do Git; a autenticação permanece no CLI.
+
+`AiRuntime` adapta Codex CLI, Claude Code e ACP v1 por stdio, sem shell e sem usar o perfil da biblioteca ou o clone Git como diretório de trabalho. A detecção usa `--version` nos CLIs nativos; no ACP, negocia a sessão com as preferências salvas, aplica agente/modelo e consulta as opções sem enviar prompt. A execução tem limites de duração e saída, cancelamento dos processos próprios e diagnóstico reduzido. O processo é local; a inferência pode depender da nuvem do provedor.
+
+`AiWorkspace` constrói um manifesto de grupos, sessões e notas, inclui corpos relevantes e permite leituras adicionais limitadas. A resposta deve conter mensagem, IDs de leitura ou ações tipadas. O modelo não recebe uma API genérica de shell e não substitui o snapshot completo. Ações e referências são validadas antes de gravar; edição de corpo exige leitura prévia. Alterar `body` invalida o documento rico antigo, mantendo a coerência do editor e os demais metadados.
+
+A interface drena o autosave antes da consulta e da aplicação. O motor compara a base do pedido com o estado atual, valida o lote e repete a guarda dentro da fila do `WorkspaceStore`. Assim, uma edição recebida ou digitada enquanto a resposta chegava não é sobrescrita por uma ação obsoleta. A gravação local não dispara sync. O último lote mantém em memória um registro de desfazer limitado às entidades alteradas; a reversão também recusa alterações posteriores incompatíveis.
+
+Pedidos e respostas mantêm um contexto curto de seguimento em memória, limpo por **Limpar resposta** ou ao encerrar o aplicativo. Os adaptadores nativos usam sessões efêmeras; retenção própria do agente ACP depende dele. O cliente ACP não fornece arquivos ou terminal, mas um executável escolhido pelo usuário continua tendo as permissões normais desse usuário. O [contrato de IA local](IA_LOCAL.md) detalha operações, contexto, limites e testes.
 
 ## Sincronização GitHub
 
@@ -146,6 +167,8 @@ O sucesso depende de push confirmado; versões pendentes e dados de recuperaçã
 | Anexos → interface | Hash conhecido da biblioteca, verificação dos bytes, `nosniff` e CSP restrita; imagens renderizadas apenas de tipos permitidos | Um hash confirma integridade, não a confiabilidade do arquivo. Abrir um arquivo exportado usa ferramentas externas ao aplicativo. |
 | Importação/remoto → disco | Validação de caminhos, rejeição de links/submódulos, limites de tamanho, integridade e processamento antes de aplicar o estado | Não há promessa de conversão perfeita para qualquer formato externo; originais são preservados pelos importadores. |
 | Git → processos | Executáveis com caminhos verificados, `shell: false`, ambiente/configuração restritos, hooks/filtros desabilitados e saída limitada | Git e GitHub CLI são dependências externas. Os testes simulam instalação/login; não demonstram disponibilidade de serviços reais. |
+| IA → biblioteca | Operações tipadas, conteúdo lido antes de editar, validação integral e guarda de versão dentro da fila de gravação | A qualidade do texto depende do modelo; a aplicação só aceita o subconjunto previsto no contrato. |
+| Cliente → agente CLI/ACP | Processo sem shell, diretório temporário, ferramentas nativas desabilitadas, sem capacidades de arquivo/terminal no cliente ACP, limites e cancelamento | O CLI pode usar a nuvem. Um agente ACP continua sendo um programa local confiado pelo usuário; não há sandbox do sistema operacional criada pelo notes. |
 | Autenticação → UI | GitHub CLI gerencia credenciais no cofre do Windows; status reduzido sem token e recusa de fallback em texto puro | A biblioteca Git não implementa criptografia ponta a ponta. Repositório privado e hashes não substituem criptografia. |
 | Tarefa Windows → execução | Usuário logado, menor privilégio e verificação de ownership antes de modificar/remover tarefa | A sincronização agendada depende da sessão e das permissões do Windows. Falhas são apresentadas como estado, sem impedir edição local. |
 

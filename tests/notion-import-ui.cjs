@@ -61,7 +61,7 @@ async function importViaDialog(app, page, fixture) {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] });
   }, fixture.filename);
   await page.keyboard.press('Control+k');
-  const search = page.getByRole('textbox', { name: 'Buscar notas, sessões ou comandos', exact: true });
+  const search = page.getByRole('combobox', { name: 'Buscar notas, grupos, sessões ou comandos', exact: true });
   await search.fill('Importar do Notion');
   await search.press('Enter');
   const chooser = page.getByRole('dialog', { name: 'Importar do Notion', exact: true });

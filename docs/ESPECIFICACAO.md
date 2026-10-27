@@ -11,8 +11,9 @@ notes organiza notas visuais, sessões e grupos em uma aplicação Windows com b
 - Armazenamento local com recuperação e anexos; importação de Notion/Obsidian, Markdown, texto e backups compatíveis.
 - Sincronização manual ou diária por Git e GitHub CLI para uma biblioteca privada identificada pelo aplicativo.
 - Interface própria com teclado, temas globais, presets por nota e diferentes formas de distribuir o espaço de trabalho.
+- Busca central com modo de pesquisa e IA opcional por Codex CLI, Claude Code ou ACP v1 para criar, editar e organizar a biblioteca.
 
-O produto não executa o código das notas, não oferece um editor de fonte Markdown e não fornece colaboração em tempo real. Não há integração de IA necessária para editar notas: desenvolvimento assistido por IA e funcionalidade de IA no produto são assuntos diferentes. Google Drive pertence ao legado de fontes/testes e é excluído do portable atual, conforme [package.json](../package.json).
+O produto não executa o código das notas, não oferece um editor de fonte Markdown e não fornece colaboração em tempo real. A edição e a busca continuam locais e independentes da IA; os pedidos à IA usam um CLI configurado pelo usuário, que pode consultar a nuvem do provedor. O [desenvolvimento assistido por IA](DESENVOLVIMENTO_COM_IA.md) possui documentação própria. Google Drive pertence ao legado de fontes/testes e é excluído do portable atual, conforme [package.json](../package.json).
 
 ## Requisitos funcionais e critérios de aceite
 
@@ -49,6 +50,19 @@ Os links abaixo apontam para testes que exercitam cenários relevantes. Esta mat
 
 O [contrato completo da migração](IMPORTACAO_NOTION.md) descreve escopo, arquivos privados e limitações do provedor. Os testes de autenticação usam transporte controlado, sem login real.
 
+## IA local por CLI/ACP
+
+| ID | Requisito | Critério de aceite | Verificação |
+| --- | --- | --- | --- |
+| RF-22 | Unificar busca e IA | Campo central na barra da janela e Ctrl+K abrem modos Buscar/Pedir à IA; busca mantém notas, grupos, sessões e comandos com navegação por teclado. | [ai-ui.cjs](../tests/ai-ui.cjs), [renderer.test.cjs](../tests/renderer.test.cjs) |
+| RF-23 | Configurar provedor no dispositivo | Engrenagem da busca abre diretamente a seção IA. Provedor, agente/modo, esforço e opções avançadas persistem localmente, fora do snapshot Git. Montar a interface não chama o modelo. | [ai-ui.cjs](../tests/ai-ui.cjs), [ai-runtime.test.cjs](../tests/ai-runtime.test.cjs), [renderer.test.cjs](../tests/renderer.test.cjs) |
+| RF-24 | Usar CLI/ACP explicitamente | Detecção consulta versão ou handshake ACP sem prompt/login. Execução usa stdin, JSON ou ACP v1, processo sem shell, opções confirmadas e cancelamento do processo próprio. | [ai-runtime.test.cjs](../tests/ai-runtime.test.cjs) |
+| RF-25 | Operar a biblioteca por contrato | Criar/editar grupos e sessões, criar/editar/acrescentar/duplicar/mover/abrir notas, ajustar tags/fixação e enviar/restaurar notas da lixeira usam somente ações tipadas válidas. | [ai-workspace.test.cjs](../tests/ai-workspace.test.cjs), [ai-ui.cjs](../tests/ai-ui.cjs) |
+| RF-26 | Aplicar com integridade | Lote completo é validado; alteração de corpo exige leitura, invalida documento rico antigo e conserva anexos. Guarda de versão na fila recusa respostas obsoletas sem sobrescrever edições. | [ai-workspace.test.cjs](../tests/ai-workspace.test.cjs), [storage.test.cjs](../tests/storage.test.cjs), [ai-ui.cjs](../tests/ai-ui.cjs) |
+| RF-27 | Mostrar e reverter o resultado | Progresso, cancelar, resposta e alterações são visíveis. Desfazer reverte o último lote em memória, preserva edições independentes e recusa entidades modificadas depois. | [ai-workspace.test.cjs](../tests/ai-workspace.test.cjs), [ai-ui.cjs](../tests/ai-ui.cjs) |
+
+O [contrato de IA local](IA_LOCAL.md) define o contexto enviado, as ações e os limites. A integração reaproveita autenticação existente; QA usa processos/provedores sintéticos sem modelos reais. Executar um CLI no dispositivo não garante inferência offline nem cria uma sandbox do sistema operacional para um agente ACP escolhido pelo usuário.
+
 ## Requisitos de integridade e isolamento
 
 | ID | Contrato | Evidência no código e nos testes |
@@ -62,6 +76,8 @@ O [contrato completo da migração](IMPORTACAO_NOTION.md) descreve escopo, arqui
 | RI-07 | Renderer não acessa Node diretamente nem rede pelo conteúdo; scripts/workers são locais e IPC verifica origem. | [main.cjs](../desktop/main.cjs), [preload.cjs](../desktop/preload.cjs), [index.html](../src/index.html) |
 | RI-08 | Cancelamento encerra operações/processos pertencentes à instância e permite nova tentativa sem reutilizar resultado obsoleto. | [github-tools.test.cjs](../tests/github-tools.test.cjs), [github-sync-cancel.test.cjs](../tests/github-sync-cancel.test.cjs) |
 | RI-09 | A autorização Notion exige proteção do sistema operacional e só permite ferramentas de leitura. O bearer não pode ser encaminhado a hosts de anexos. | [notion-client.cjs](../desktop/notion-client.cjs), [notion-client.test.cjs](../tests/notion-client.test.cjs), [notion-migration.test.cjs](../tests/notion-migration.test.cjs) |
+| RI-10 | IA não recebe uma API genérica de shell ou um snapshot para substituir a biblioteca; ações desconhecidas, campos inválidos, leituras ausentes e limites excedidos são recusados antes da aplicação. | [ai-workspace.cjs](../desktop/ai-workspace.cjs), [ai-workspace.test.cjs](../tests/ai-workspace.test.cjs) |
+| RI-11 | Preferências e autenticação de IA não entram nas revisões da biblioteca; os CLIs usam processos próprios, saída limitada e diagnóstico sem conteúdo bruto de stderr. QA bloqueia CLIs reais sem injeção controlada. | [ai-runtime.cjs](../desktop/ai-runtime.cjs), [ai-runtime.test.cjs](../tests/ai-runtime.test.cjs), [renderer.test.cjs](../tests/renderer.test.cjs) |
 
 Revisões e anexos usam hashes para integridade; isso não equivale a criptografia da biblioteca. A arquitetura e os limites de tamanho estão descritos em [ARQUITETURA.md](ARQUITETURA.md).
 
@@ -78,6 +94,7 @@ Os comandos oficiais estão em [package.json](../package.json). Escolha primeiro
 | `npm run test:github-ui` | Onboarding, presets e comparação de conflitos no Electron. |
 | `npm run test:code-ui` | Colagem, edição, linguagens e persistência de widgets Monaco. |
 | `npm run test:notion-ui` | Importação ZIP e migração conectada com respostas sintéticas, cancelamento, retomada e lacunas de cobertura. |
+| `npm run test:ai-ui` | Busca central, configurações e ações de IA no Electron com provedor sintético, persistência e desfazer. |
 | `node tests/context-menu-ui.cjs` | Menus de contexto reais de notas, grupos e sessões. |
 | `npm run dist` | Compila recursos locais e produz o portable Windows x64. |
 | `npm run test:portable` | Abre o executável final com perfil temporário, exercita ações e reinicia para verificar persistência. |
