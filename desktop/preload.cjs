@@ -1,0 +1,39 @@
+const { contextBridge, ipcRenderer } = require('electron');
+const subscribe = channel => callback => {
+  const listener = (_event, value) => callback(value);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+};
+
+contextBridge.exposeInMainWorld('notes', Object.freeze({
+  bootstrap: () => ipcRenderer.invoke('workspace:bootstrap'),
+  save: (snapshot, base) => ipcRenderer.invoke('workspace:save', snapshot, base),
+  inspectGitHub: () => ipcRenderer.invoke('github:inspect'),
+  connectGitHub: () => ipcRenderer.invoke('github:connect'),
+  disconnectGitHub: () => ipcRenderer.invoke('github:disconnect'),
+  syncNow: () => ipcRenderer.invoke('github:sync'),
+  getGitHubConflicts: () => ipcRenderer.invoke('github:conflicts'),
+  resolveGitHubConflicts: payload => ipcRenderer.invoke('github:resolve',payload),
+  dismissOnboarding: () => ipcRenderer.invoke('github:dismiss-onboarding'),
+  openGitHubFolder: () => ipcRenderer.invoke('github:folder'),
+  openGitHubRepository: () => ipcRenderer.invoke('github:repository'),
+  exportBackup: () => ipcRenderer.invoke('workspace:export'),
+  importBackup: () => ipcRenderer.invoke('workspace:import'),
+  exportNote: id => ipcRenderer.invoke('note:export', id),
+  copyText: text => ipcRenderer.invoke('clipboard:write', text),
+  readClipboard: () => ipcRenderer.invoke('clipboard:read'),
+  nativeEdit: command => ipcRenderer.invoke('editor:native', command),
+  noteMenu: id => ipcRenderer.invoke('note:menu', id),
+  groupMenu: id => ipcRenderer.invoke('group:menu', id),
+  appMenu: (type,position) => ipcRenderer.invoke('app:menu', type,position),
+  importSource: (source,kind) => ipcRenderer.invoke('workspace:import-source', source,kind),
+  openExternal: url => ipcRenderer.invoke('link:open', url),
+  saveAttachment: descriptor => ipcRenderer.invoke('asset:save', descriptor),
+  window: action => ipcRenderer.invoke('window:action', action),
+  onWorkspace: subscribe('workspace:changed'),
+  onSync: subscribe('github:status'),
+  onImportProgress: subscribe('import:progress'),
+  onAction: subscribe('ui:action'),
+  onBeforeClose: subscribe('window:closing'),
+  finishClose: () => ipcRenderer.send('window:close-ready'),
+}));

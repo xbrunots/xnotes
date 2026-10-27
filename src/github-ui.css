@@ -1,0 +1,18 @@
+.github-onboarding{list-style:none;padding:0;margin:0 0 20px;display:flex;flex-direction:column;gap:17px}
+.github-onboarding li{display:flex;align-items:center;gap:12px}
+.github-step-number{width:28px;height:28px;border:1px solid var(--line-strong);border-radius:50%;display:grid;place-items:center;flex:none;font-size:12px;color:var(--ink-3)}
+.github-onboarding li[data-state=done] .github-step-number{color:var(--acc-ink);background:var(--acc-soft);border-color:var(--acc-line)}
+.github-onboarding li[data-state=active] .github-step-number{border-color:var(--acc-ink);color:var(--ink);box-shadow:0 0 0 3px var(--acc-soft)}
+.github-onboarding li>div{display:flex;flex-direction:column;gap:5px}.github-onboarding strong{font-size:12.5px;font-weight:550}.github-onboarding small{font-size:11px;color:var(--ink-3)}
+.github-repository-name{font-size:13px;color:var(--ink)}
+.github-device-code{display:flex;align-items:center;flex-direction:column;gap:9px;margin:18px 0;padding:15px;border:1px solid var(--acc-line);border-radius:12px;background:var(--acc-soft)}
+.github-device-code>span{font-size:12px}.dialog .github-device-code button{font:650 24px 'Geist Mono',monospace;letter-spacing:4px;background:var(--glass-strong);padding:10px 15px}.github-device-code small{font-size:10.5px;color:var(--ink-3)}
+.github-local-folder{margin-top:20px;border-top:1px solid var(--line);padding-top:15px}.github-local-folder>span{font-size:11px;color:var(--ink-3)}.dialog .github-local-folder p{font-size:11.5px;overflow-wrap:anywhere;margin:7px 0 9px}.github-local-folder>div{display:flex;gap:7px}.dialog .github-local-folder button{font-size:11px;padding:6px 9px}
+.status-conflict{background:#E4A450;box-shadow:0 0 0 3px #E4A4501a}
+.github-conflict-tabs{display:flex;overflow:auto;gap:5px;margin:16px 0 13px}.dialog .github-conflict-tabs button{font-size:11px;white-space:nowrap;padding:7px 10px}.dialog .github-conflict-tabs button[aria-selected=true]{background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc-ink)}
+.dialog:has(.github-conflict-content){width:940px}
+.github-conflict-versions{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;max-height:50vh;overflow-y:auto}
+.github-conflict-versions>section{min-width:0}.github-conflict-versions>section+section{border-left:1px solid var(--line)}.dialog .github-conflict-versions h2{position:sticky;top:0;padding:12px 14px;margin:0;background:var(--glass-strong);border-bottom:1px solid var(--line);font-size:12px;z-index:1}
+.github-conflict-lines{padding:9px 0}.github-conflict-line{min-height:22px;padding:1px 12px;font-size:12px;line-height:22px;white-space:pre-wrap;overflow-wrap:anywhere;border-left:3px solid transparent}.github-conflict-line.removed{background:#E2696915;border-color:#E28686}.github-conflict-line.added{background:#51B18315;border-color:#75C69B}.github-conflict-line.empty{opacity:.35}.github-version-empty{padding:16px;overflow-wrap:anywhere}
+.github-conflict-choices{display:flex;gap:7px;margin-top:15px;flex-wrap:wrap}.dialog .github-conflict-choices button[aria-pressed=true]{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc-ink)}
+.github-conflict-apply{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}.github-conflict-apply>span{font-size:11px;color:var(--ink-3)}

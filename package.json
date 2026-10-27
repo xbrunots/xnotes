@@ -1,0 +1,94 @@
+{
+  "name": "notes",
+  "version": "1.0.0",
+  "description": "Suas notas, sessões e ideias em um só espaço. Feito para Windows, com sincronização pelo GitHub.",
+  "private": true,
+  "author": "notes",
+  "license": "UNLICENSED",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.cjs",
+    "start": "npm run build:ui && electron .",
+    "build:ui": "node scripts/build.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "test:ui": "npm run build:ui && node tests/ui-smoke.cjs",
+    "test:layout": "npm run build:ui && node tests/layout-ui.cjs",
+    "test:workspace": "npm run build:ui && node tests/advanced-workspace-ui.cjs",
+    "test:github-ui": "npm run build:ui && node tests/github-ui.cjs",
+    "test:code-ui": "npm run build:ui && node tests/code-widget-ui.cjs",
+    "test:portable": "node tests/portable-smoke.cjs",
+    "dist": "npm run build:ui && node scripts/package-portable.cjs",
+    "dist:dir": "npm run build:ui && electron-builder --win --dir --x64"
+  },
+  "dependencies": {
+    "@floating-ui/dom": "1.8.0",
+    "@tiptap/core": "3.32.0",
+    "@tiptap/extension-bubble-menu": "3.32.0",
+    "@tiptap/extension-code-block": "3.32.0",
+    "@tiptap/extension-highlight": "3.32.0",
+    "@tiptap/extension-image": "3.32.0",
+    "@tiptap/extension-link": "3.32.0",
+    "@tiptap/extension-list": "3.32.0",
+    "@tiptap/extension-paragraph": "3.32.0",
+    "@tiptap/extension-placeholder": "3.32.0",
+    "@tiptap/extension-table": "3.32.0",
+    "@tiptap/extension-text-align": "3.32.0",
+    "@tiptap/markdown": "3.32.0",
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/react": "3.32.0",
+    "@tiptap/starter-kit": "3.32.0",
+    "markdown-it": "15.0.3",
+    "monaco-editor": "0.56.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "turndown": "7.2.4",
+    "turndown-plugin-gfm": "1.0.2",
+    "yauzl": "3.4.0",
+    "yazl": "3.3.1"
+  },
+  "overrides": {
+    "dompurify": "3.4.17"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0",
+    "esbuild": "0.25.12",
+    "parse5": "7.3.0",
+    "playwright": "1.64.1",
+    "pngjs": "7.0.0"
+  },
+  "build": {
+    "appId": "app.notes.windows",
+    "productName": "notes",
+    "asar": true,
+    "directories": {
+      "output": "portable",
+      "buildResources": "build"
+    },
+    "files": [
+      "app/**/*",
+      "desktop/**/*",
+      "!app/google-client.json",
+      "!desktop/drive-*.cjs",
+      "!desktop/cloud-sync.cjs",
+      "!node_modules/monaco-editor/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true,
+      "artifactName": "notes-${version}-Windows-x64-portable.${ext}"
+    },
+    "portable": {
+      "requestExecutionLevel": "user"
+    }
+  }
+}

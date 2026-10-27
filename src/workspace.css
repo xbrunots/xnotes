@@ -1,0 +1,28 @@
+/* Minimal note card; groups, sessions and the note list keep their navigation. */
+[data-app-shell]{background:var(--wall)!important;backdrop-filter:none!important}
+[data-editor-workspace]{padding:22px 14px 14px!important;gap:0!important;overflow:hidden!important}
+[data-pane]{min-width:0!important;max-width:860px!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;backdrop-filter:none!important;overflow:visible!important}
+[data-pane]>input{margin:8px 18px 8px!important;font-size:26px!important;line-height:1.35;flex:none}
+[data-pane]>.note-editor-scroll{padding-top:2px}
+[data-pane]>.note-attachments{margin:0 18px;background:transparent;border:0;padding:7px 0;opacity:.65}
+[data-pane]>.note-attachments:hover{opacity:1}
+[data-pane]>div:last-child:has(a){font-size:11px}
+[data-note-row]{padding:11px 12px!important;border-radius:8px!important;margin-bottom:2px}
+[data-note-row]>div:not(:first-child){display:none!important}
+[data-note-row]>div:first-child{margin:0!important;font-size:13px!important}
+.app-titlebar{gap:5px;padding-left:10px;background:var(--wall);border-bottom-color:transparent;backdrop-filter:none}
+.app-titlebar[data-appearance="standard"]{border-bottom-color:var(--line)}
+.app-brand{margin-left:4px;gap:7px;color:var(--ink-2);font-size:12px;font-weight:500}
+.app-brand img{width:18px;height:18px;border-radius:4px}
+.titlebar-drag-space{display:block!important}
+.app-titlebar .titlebar-settings{color:var(--ink-3);width:29px}
+.app-titlebar .titlebar-settings:hover{color:var(--ink)}
+.app-titlebar .github-control{width:29px;height:28px;padding:5px 7px;position:relative}
+.app-titlebar .github-control>span:nth-child(2){display:none}
+.app-titlebar .github-control>.status-dot{position:absolute;width:4px;height:4px;right:3px;bottom:4px;box-shadow:none}
+.editor-commandbar{border:0;padding:0;margin:0 0 3px;height:27px;opacity:0;transition:opacity .16s;justify-content:flex-start;flex-wrap:nowrap}
+.editor-commandbar>.format-group{display:none}
+.rich-editor:hover .editor-commandbar,.rich-editor:focus-within .editor-commandbar{opacity:.65}
+.editor-commandbar .format-trigger{border:0;font-size:11px;padding:3px 5px;margin:0}
+.visual-document{font-size:15px;line-height:1.8}
+@media(max-width:800px){[data-editor-workspace]{padding:22px 8px 10px!important}}

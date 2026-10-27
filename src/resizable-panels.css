@@ -1,0 +1,13 @@
+.panel-resize-handle{position:absolute;z-index:18;display:block;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-app-region:no-drag;outline:0;border:0;background:transparent;box-sizing:border-box}
+.panel-resize-x{top:0;bottom:0;right:-4px;width:8px;cursor:col-resize}
+.panel-resize-y{left:0;right:0;bottom:-4px;height:8px;cursor:row-resize}
+.panel-resize-handle>span{position:absolute;display:block;pointer-events:none;border-radius:2px;background:transparent;transition:background .14s,box-shadow .14s}
+.panel-resize-x>span{top:10px;bottom:10px;left:3px;width:2px}
+.panel-resize-y>span{left:10px;right:10px;top:3px;height:2px}
+.panel-resize-handle:hover>span,.panel-resize-handle:focus-visible>span,.panel-resize-handle.is-resizing>span{background:var(--acc-ink,var(--accent));box-shadow:0 0 0 1px var(--acc-soft,transparent)}
+.panel-resize-handle:focus-visible{background:var(--acc-soft,transparent);border-radius:3px}
+.panel-resize-handle[aria-disabled="true"]{cursor:default;pointer-events:none}
+html[data-panel-resizing="x"],html[data-panel-resizing="x"] *{cursor:col-resize!important;user-select:none!important}
+html[data-panel-resizing="y"],html[data-panel-resizing="y"] *{cursor:row-resize!important;user-select:none!important}
+@media(pointer:coarse){.panel-resize-x{width:10px;right:-5px}.panel-resize-y{height:10px;bottom:-5px}.panel-resize-x>span{left:4px}.panel-resize-y>span{top:4px}}
+@media(prefers-reduced-motion:reduce){.panel-resize-handle>span{transition:none}}

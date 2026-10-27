@@ -1,0 +1,165 @@
+{
+  "theme": null,
+  "groups": [
+    {
+      "id": "g1",
+      "name": "Pessoal",
+      "color": "#FF9F0A",
+      "sessions": [
+        {
+          "id": "s1",
+          "name": "Diário"
+        },
+        {
+          "id": "s2",
+          "name": "Viagem a Lisboa"
+        }
+      ]
+    },
+    {
+      "id": "g2",
+      "name": "Trabalho",
+      "color": "#7D7AFF",
+      "sessions": [
+        {
+          "id": "s3",
+          "name": "Projeto Atlas"
+        },
+        {
+          "id": "s4",
+          "name": "Reuniões"
+        }
+      ]
+    },
+    {
+      "id": "g3",
+      "name": "Estudos",
+      "color": "#30D158",
+      "sessions": [
+        {
+          "id": "s5",
+          "name": "Design de interação"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "id": "n1",
+      "s": "s3",
+      "t": "09:42",
+      "title": "Atlas — visão geral",
+      "body": "# Objetivo\nUnificar notas, tarefas e referências num só espaço, sem trocar de tela.\n\n## Próximos passos\n- [x] Definir escopo do MVP\n- [ ] Revisar [[Roadmap Q4]] com o time\n- [ ] Validar fluxo em [[Pesquisa com usuários]]\n\nReferência visual em [[Moodboard]]. #produto"
+    },
+    {
+      "id": "n2",
+      "s": "s3",
+      "t": "Ontem",
+      "title": "Roadmap Q4",
+      "body": "# Outubro\n- [x] Editor com links\n- [ ] Sessões salvas\n\n# Novembro\n- [ ] Sincronização\n- [ ] Versão web\n\nDepende de [[Atlas — visão geral]]. #planejamento"
+    },
+    {
+      "id": "n3",
+      "s": "s3",
+      "t": "Seg",
+      "title": "Pesquisa com usuários",
+      "body": "## Achados\n- Pessoas mantêm 3–4 notas abertas ao mesmo tempo\n- Pastas profundas confundem; preferem grupos rasos\n- A busca é o atalho principal\n\nLigado a [[Roadmap Q4]] e [[Arquitetura de sync]]. #pesquisa"
+    },
+    {
+      "id": "n4",
+      "s": "s3",
+      "t": "12 out",
+      "title": "Moodboard",
+      "body": "Vidro, desfoque, luz suave.\nMovimento que explica de onde as coisas vêm.\n\n- Superfícies translúcidas em camadas\n- Tipografia neutra, muito respiro\n\n#design"
+    },
+    {
+      "id": "n5",
+      "s": "s4",
+      "t": "08:30",
+      "title": "Daily — segunda",
+      "body": "## Pauta\n- [ ] Status do [[Atlas — visão geral]]\n- [ ] Bloqueios do time\n\nAnotações rápidas aqui. #reunião"
+    },
+    {
+      "id": "n6",
+      "s": "s4",
+      "t": "Sex",
+      "title": "1:1 com Marina",
+      "body": "- Feedback sobre o [[Moodboard]]\n- Plano de carreira\n- [ ] Enviar resumo #reunião"
+    },
+    {
+      "id": "n7",
+      "s": "s1",
+      "t": "Dom",
+      "title": "Domingo",
+      "body": "Café na varanda, chuva fina.\nComecei a ler sobre [[Hábitos]].\n\n#diário"
+    },
+    {
+      "id": "n8",
+      "s": "s1",
+      "t": "Sáb",
+      "title": "Hábitos",
+      "body": "- [x] Caminhar 30 min\n- [ ] Ler 20 páginas\n- [ ] Dormir antes da meia-noite"
+    },
+    {
+      "id": "n9",
+      "s": "s2",
+      "t": "3 out",
+      "title": "Roteiro Lisboa",
+      "body": "# Dia 1\n- Alfama ao entardecer\n- Pastéis em Belém\n\n# Dia 2\n- Sintra\n\nOrçamento em [[Gastos da viagem]]. #viagem"
+    },
+    {
+      "id": "n10",
+      "s": "s2",
+      "t": "2 out",
+      "title": "Gastos da viagem",
+      "body": "- Voo: €420\n- Hotel: €610\n- Extras: €200\n\n#viagem"
+    },
+    {
+      "id": "n11",
+      "s": "s5",
+      "t": "20 set",
+      "title": "Leis do movimento na UI",
+      "body": "# Princípios\n- Continuidade: o elemento vem de algum lugar\n- Duração curta, curva suave\n- Desfoque sugere profundidade\n\nAplicar no [[Moodboard]]. #estudo #design"
+    }
+  ],
+  "openBy": {
+    "s1": [
+      "n7",
+      "n8"
+    ],
+    "s2": [
+      "n9"
+    ],
+    "s3": [
+      "n1",
+      "n2",
+      "n3"
+    ],
+    "s4": [
+      "n5"
+    ],
+    "s5": [
+      "n11"
+    ]
+  },
+  "focusBy": {
+    "s1": "n7",
+    "s2": "n9",
+    "s3": "n1",
+    "s4": "n5",
+    "s5": "n11"
+  },
+  "session": "s3",
+  "view": "session",
+  "tag": null,
+  "expanded": {
+    "g1": true,
+    "g2": true,
+    "g3": false
+  },
+  "layout": "split",
+  "sidebar": true,
+  "accent": "Azul",
+  "motion": true,
+  "blur": 28
+}

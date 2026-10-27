@@ -1,0 +1,20 @@
+const { app, nativeImage } = require('electron');
+const fs = require('node:fs');
+const path = require('node:path');
+app.whenReady().then(()=>{
+  const root=path.join(__dirname,'..');
+  const source=nativeImage.createFromPath(path.join(root,'build/logo-original.png'));
+  if(source.isEmpty())throw new Error('Logo não encontrado.');
+  const sizes=[16,24,32,48,64,128,256];
+  const chunks=sizes.map(size=>source.resize({width:size,height:size,quality:'best'}).toPNG());
+  const header=Buffer.alloc(6+16*sizes.length);header.writeUInt16LE(1,2);header.writeUInt16LE(sizes.length,4);
+  let offset=header.length;
+  sizes.forEach((size,i)=>{const p=6+i*16;header[p]=size===256?0:size;header[p+1]=header[p];header.writeUInt16LE(1,p+4);header.writeUInt16LE(32,p+6);header.writeUInt32LE(chunks[i].length,p+8);header.writeUInt32LE(offset,p+12);offset+=chunks[i].length;});
+  const ico=Buffer.concat([header,...chunks]);
+  fs.writeFileSync(path.join(root,'build/icon.ico'),ico);
+  fs.writeFileSync(path.join(root,'build/icon.png'),chunks[chunks.length-1]);
+  fs.writeFileSync(path.join(root,'src/assets/icon.png'),chunks[chunks.length-1]);
+  fs.writeFileSync(path.join(root,'src/assets/favicon.ico'),ico);
+  fs.copyFileSync(path.join(root,'build/logo-original.png'),path.join(root,'src/assets/logo.png'));
+  console.log('Logo X: ICO 16–256 px, PNG e favicon gerados.');app.quit();
+}).catch(error=>{console.error(error);app.exit(1);});

@@ -1,0 +1,20 @@
+.notes-context-layer{position:fixed;inset:0;z-index:180;pointer-events:none;font-family:'Geist',system-ui,sans-serif;color:var(--ink);font-size:12px;-webkit-font-smoothing:antialiased}
+.notes-context-menu{position:fixed;width:267px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;overscroll-behavior:contain;pointer-events:auto;padding:5px;border:1px solid var(--line-strong);border-radius:12px;background:var(--glass-strong);backdrop-filter:blur(44px) saturate(150%);box-shadow:var(--pane-shadow),0 14px 45px rgba(0,0,0,.2);-webkit-app-region:no-drag;animation:notesMenuIn .12s ease-out;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+.notes-context-heading{padding:7px 10px 8px;margin:0 2px 4px;border-bottom:1px solid var(--line);font-size:10.5px;color:var(--ink-3);font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:none}
+.notes-context-menu .notes-context-item{display:flex;align-items:center;gap:9px;width:100%;min-height:30px;padding:6px 8px;border:0;border-radius:6px;background:transparent;color:var(--ink-2);font:inherit;font-size:12px;line-height:1.35;text-align:left;cursor:pointer;outline:none;user-select:none}
+.notes-context-menu .notes-context-item.active{background:var(--hover-2);color:var(--ink)}
+.notes-context-menu .notes-context-item:focus-visible{outline:1.5px solid var(--acc-ink);outline-offset:-1.5px}
+.notes-context-menu .notes-context-item[aria-expanded=true]{background:var(--hover-2);color:var(--ink)}
+.notes-context-menu .notes-context-item[aria-checked=true]{color:var(--acc-ink)}
+.notes-context-menu .notes-context-item.danger{color:var(--danger-ink,#ed837c)}
+.notes-context-menu .notes-context-item.danger.active{background:color-mix(in srgb,var(--danger-ink,#ed837c) 12%,transparent)}
+.notes-context-menu .notes-context-item:disabled{color:var(--ink-3);opacity:.48;cursor:default;background:transparent}
+.notes-context-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notes-context-symbol{display:grid;place-items:center;flex:none;width:15px;height:15px;color:var(--acc-ink)}
+.notes-context-symbol i{width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(127,127,127,.22)}
+.notes-context-item>svg{flex:none;opacity:.8}
+.notes-context-separator{height:1px;background:var(--line);margin:5px 5px}
+.context-action-form>.form-label{margin-top:16px}
+.dialog button.context-confirm-danger{background:var(--danger-ink,#ba4b45);color:white;border-color:transparent}
+@keyframes notesMenuIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.notes-context-menu{animation:none}}
