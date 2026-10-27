@@ -67,10 +67,15 @@ async function main(){
     await centralSearch.click();await run.page.getByRole('button',{name:'Configurar IA',exact:true}).click();
     const aiSettings=run.page.getByRole('dialog',{name:'Configurações',exact:true});
     assert(await aiSettings.locator('#settings-ai').isVisible());
+    const modelPicker=aiSettings.getByRole('combobox',{name:'Modelo de IA',exact:true});assert(await modelPicker.isVisible());
+    assert.equal(await aiSettings.getByRole('button',{name:'Configuração avançada',exact:true}).getAttribute('aria-expanded'),'false');
+    await modelPicker.click();await aiSettings.getByRole('combobox',{name:'Buscar modelos de IA',exact:true}).press('Escape');
     await aiSettings.getByRole('combobox',{name:'Provedor de IA'}).click();await aiSettings.getByRole('option',{name:'Claude Code',exact:true}).click();
     await aiSettings.getByRole('combobox',{name:'Agente de IA'}).fill('portable-fixture-agent');await aiSettings.getByRole('combobox',{name:'Agente de IA'}).press('Escape');
+    await aiSettings.getByRole('button',{name:'Configuração avançada',exact:true}).click();await aiSettings.getByRole('textbox',{name:'Identificador de modelo personalizado',exact:true}).fill('portable-fixture-model');
     await aiSettings.getByRole('button',{name:'Salvar IA',exact:true}).click();await aiSettings.getByRole('status').filter({hasText:'Configurações de IA salvas'}).waitFor();
     assert.equal((await run.page.evaluate(()=>window.notes.aiStatus())).settings.agent,'portable-fixture-agent');
+    assert.equal((await run.page.evaluate(()=>window.notes.aiStatus())).settings.model,'portable-fixture-model');
     assert.equal(await run.page.evaluate(async()=>{try{await window.notes.runAi({prompt:'Teste isolado do portable'});return false;}catch(error){return /bloqueia CLIs reais/.test(error.message);}}),true);
     await aiSettings.getByRole('button',{name:'Concluir',exact:true}).click();
     assert.ok(await run.page.locator('[data-note-main]').evaluate(main=>{const tabs=main.querySelector('.workspace-tabs'),rect=main.getBoundingClientRect(),t=tabs.getBoundingClientRect();return parseFloat(getComputedStyle(main).borderRadius)>=12&&t.top>=rect.top&&t.bottom<rect.bottom;}));
@@ -98,6 +103,7 @@ async function main(){
     assert.equal(await run.page.locator('article[data-pane]').count(),1);
     assert.equal(await run.page.locator('[data-app-shell]').getAttribute('data-appearance'),'islands');
     assert.equal((await run.page.evaluate(()=>window.notes.aiStatus())).settings.agent,'portable-fixture-agent');
+    assert.equal((await run.page.evaluate(()=>window.notes.aiStatus())).settings.model,'portable-fixture-model');
     const createButtons=await run.page.locator('button[data-create="note"]').evaluateAll(buttons=>buttons.map(button=>[...button.querySelectorAll('svg path')].map(path=>path.getAttribute('d')).join('')));
     assert(createButtons.length>=2);assert(createButtons.every(path=>path==='M12 5v14M5 12h14'));
     assert.equal(await run.page.locator('textarea,select,input[type=checkbox],input[type=radio],input[type=range]').count(),0);
@@ -141,7 +147,11 @@ async function main(){
     const footerGaps=await run.page.locator('article[data-pane]:has(>[data-note-backlinks])').evaluateAll(cards=>cards.map(card=>card.getBoundingClientRect().bottom-card.querySelector('[data-note-backlinks]').getBoundingClientRect().bottom));
     assert(footerGaps.length>0);assert(footerGaps.every(gap=>Math.abs(gap)<=1.1));
     const portableCode='const portableCode = 42;\nconsole.log(portableCode);';
-    await editor.click();await run.page.keyboard.press('Control+End');await run.page.keyboard.press('Enter');
+    await run.page.bringToFront();await editor.press('Control+End');
+    // Native cursor movement reaches the DOM before ProseMirror observes the
+    // selection change. Enter must not consume the earlier heading selection.
+    await run.page.waitForFunction(id=>{const instance=document.querySelector('[data-editor="'+CSS.escape(id)+'"]')?.__notesEditor;return instance?.isFocused&&instance.state.selection.empty&&instance.state.selection.from===instance.state.doc.content.size-1;},createdNoteId);
+    await editor.press('Enter');
     await run.page.evaluate(text=>window.notes.copyText(text),portableCode);await run.page.keyboard.press('Control+v');
     const codeWidget=themedCard.locator('[data-code-widget]');await codeWidget.waitFor();
     await run.page.waitForFunction(()=>document.querySelector('article[data-note-theme="peach"] [data-code-widget]')?.dataset.codeReady==='true');
@@ -152,7 +162,8 @@ async function main(){
     assert.equal(await languageMenu.getByRole('option').count(),84);
     await languageMenu.getByRole('combobox',{name:'Buscar linguagem de programação',exact:true}).fill('TypeScript');await languageMenu.getByRole('option',{name:'TypeScript',exact:true}).click();
     assert.equal(await codeWidget.getAttribute('data-language'),'typescript');
-    assert.equal(await codeWidget.locator('.mtk1').first().evaluate(element=>getComputedStyle(element).color),await themedCard.evaluate(element=>getComputedStyle(element).color));
+    await run.page.waitForFunction(id=>{const card=document.querySelector('article[data-pane="'+CSS.escape(id)+'"]'),token=card?.querySelector('[data-code-widget] .mtk1');return token?.isConnected&&getComputedStyle(token).color===getComputedStyle(card).color;},createdNoteId);
+    assert.equal(await editor.locator('h1 u').innerText(),'Portable','inserir código ao fim preserva o texto formatado anterior');
     await run.page.screenshot({path:path.join(evidence,'portable-code.png')});
     await codeWidget.screenshot({path:path.join(evidence,'notes-monaco-widget.png')});
     await run.page.keyboard.press('Control+s');
@@ -187,7 +198,7 @@ async function main(){
     await run.page.getByRole('button',{name:'Cancelar',exact:true}).click();
     await close(run);run=null;
     console.log('PASS: o mesmo portable reabre os dados persistidos e inclui a importação do Notion.');
-    await fs.writeFile(path.join(evidence,'portable-validation.json'),JSON.stringify({executable,bytes:(await fs.stat(executable)).size,validatedAt:new Date().toISOString(),dataDir:data,checks:['central-searchbox','ai-settings-shortcut','ai-provider-agent-configuration','ai-device-settings-persistence','ai-real-cli-qa-block','real-executable-launch','custom-toolbar','single-sidebar-toggle','custom-icon','native-ipc','fullscreen-f11','10-custom-themes','strong-dark-theme-persistence','custom-color-dropdown','custom-switch','custom-slider','no-browser-native-widgets','single-note-and-editor-instance','markdown-paste-to-visual-content','selection-format-popover','rich-underline-persistence','context-menu-copy-plain-text','clipboard-read-write','disk-save','close-with-flush','restart-persistence','preference-persistence','notion-import-ui','plus-creation-buttons','island-layout','island-layout-persistence','open-note-tabs','distinct-side-by-side-editors','note-display-persistence','toolbar-divider','settings-only-themes','tabs-inside-island','resize-keyboard-and-persistence','grid-masonry-cards','grid-vertical-scroll','grid-persistence','github-first-run-onboarding','github-provider','no-drive-configuration','20-note-color-presets','note-color-persistence','grid-edge-insets','footer-flush','note-color-hover-button','note-color-popover','note-color-popover-escape','monaco-offline-widget','monaco-language-context-menu','monaco-code-persistence','monaco-inherited-colors']},null,2));
+    await fs.writeFile(path.join(evidence,'portable-validation.json'),JSON.stringify({executable,bytes:(await fs.stat(executable)).size,validatedAt:new Date().toISOString(),dataDir:data,checks:['ai-model-picker','ai-model-persistence','central-searchbox','ai-settings-shortcut','ai-provider-agent-configuration','ai-device-settings-persistence','ai-real-cli-qa-block','real-executable-launch','custom-toolbar','single-sidebar-toggle','custom-icon','native-ipc','fullscreen-f11','10-custom-themes','strong-dark-theme-persistence','custom-color-dropdown','custom-switch','custom-slider','no-browser-native-widgets','single-note-and-editor-instance','markdown-paste-to-visual-content','selection-format-popover','rich-underline-persistence','context-menu-copy-plain-text','clipboard-read-write','disk-save','close-with-flush','restart-persistence','preference-persistence','notion-import-ui','plus-creation-buttons','island-layout','island-layout-persistence','open-note-tabs','distinct-side-by-side-editors','note-display-persistence','toolbar-divider','settings-only-themes','tabs-inside-island','resize-keyboard-and-persistence','grid-masonry-cards','grid-vertical-scroll','grid-persistence','github-first-run-onboarding','github-provider','no-drive-configuration','20-note-color-presets','note-color-persistence','grid-edge-insets','footer-flush','note-color-hover-button','note-color-popover','note-color-popover-escape','monaco-offline-widget','monaco-language-context-menu','monaco-code-persistence','monaco-inherited-colors']},null,2));
   }catch(error){if(run){await run.page.screenshot({path:path.join(evidence,'portable-failure.png')}).catch(()=>{});await fs.writeFile(path.join(evidence,'portable-failure.json'),JSON.stringify(await run.page.evaluate(async()=>({text:document.body.innerText,active:document.activeElement?.outerHTML,focused:document.hasFocus(),clipboard:await window.notes.readClipboard(),snapshot:await window.notes.bootstrap()})).catch(()=>({closed:true})),null,2));}throw error;}
   finally{if(run){await run.page.evaluate(()=>window.notes.window('close')).catch(()=>{});await Promise.race([run.closed,new Promise(resolve=>setTimeout(resolve,4000))]);if(run.child.exitCode===null)run.child.kill();}}
 }

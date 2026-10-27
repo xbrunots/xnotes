@@ -45,7 +45,7 @@ A sincronização é opcional e usa um repositório **privado na sua conta GitHu
 | **Escrita visual** | Colar Markdown e editar títulos, listas, tarefas, tabelas e links diretamente na nota. |
 | **Código com contexto** | Editar blocos Monaco com 84 linguagens, workers locais e conteúdo persistido. Código não é executado. |
 | **Organização flexível** | Usar grupos, sessões, tags, links entre notas, abas e painéis redimensionáveis. |
-| **IA pelo seu CLI** | Criar, editar e organizar notas, grupos e sessões pela busca central, com Codex CLI, Claude Code ou ACP e configuração de agente/esforço. |
+| **IA pelo seu CLI** | Criar, editar e organizar notas, grupos e sessões pela busca central, com Codex CLI, Claude Code ou ACP, lista pesquisável de modelos e configuração de agente/esforço. |
 | **Seu espaço, seu tema** | Escolher entre 10 temas globais, 20 estilos por nota e aparências Padrão ou Ilha. |
 | **Dados locais** | Trabalhar sem conexão, manter anexos e exportar backups completos em ZIP. |
 | **GitHub opcional** | Sincronizar com histórico Git, merge de alterações compatíveis e comparação Local/GitHub para conflitos. |
@@ -80,7 +80,7 @@ A primeira abertura oferece a conexão com GitHub. Você pode concluir o onboard
 
 ![Busca central do notes com uma estrutura de grupo, sessão e nota criada pela IA e opção de desfazer.](docs/assets/notes-ai-search.png)
 
-<p align="center"><sub>Interface Electron real com dados e provedor sintéticos de QA. <a href="docs/assets/notes-ai-settings.png">Ver configurações de provedor, agente e esforço.</a></sub></p>
+<p align="center"><sub>Interface Electron real com dados e provedor sintéticos de QA. <a href="docs/assets/notes-ai-settings.png">Ver configurações de provedor, agente, modelo e esforço.</a></sub></p>
 
 ## Por dentro da engenharia
 

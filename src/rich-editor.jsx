@@ -3,7 +3,7 @@ import {EditorContent,useEditor,useEditorState} from '@tiptap/react';
 import {BubbleMenu} from '@tiptap/react/menus';
 import {editorExtensions} from './editor-extensions';
 import {allowedLink,documentForNote,splitNoteSource} from './note-content';
-import {applyNoteContent} from './editor-content';
+import {applyNoteContent,shouldPersistEditorUpdate} from './editor-content';
 import {PlusIcon,DropdownIcon} from './controls';
 import {convertSelectionToCode,insertCodeBlock} from './code-commands';
 import {pastedCodeLanguage} from './code-languages';
@@ -85,7 +85,8 @@ export function RichEditor({note,variables,onChange,onReady,onNote,onAsset,onExt
       if(doc){try{applyNoteContent(e,doc,{errorOnInvalidContent:true});}catch{/* The intact Markdown source is the fallback. */}}
       e.view.dom.__notesEditor=e;current.current.onReady?.(e);
     },
-    onUpdate:({editor:e})=>{
+    onUpdate:({editor:e,transaction})=>{
+      if(!shouldPersistEditorUpdate(transaction))return;
       const body=(source.current.prefix?source.current.prefix+'\n':'')+e.getMarkdown(),doc=e.getJSON();
       last.current={body,doc:JSON.stringify(doc)};
       const richText={version:1,source:body,doc};

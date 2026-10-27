@@ -25,6 +25,14 @@ const configMatches = {
   effort: option => option.category === 'thought_level' || /(?:effort|reasoning|thought)[_-]?(?:level)?/iu.test(option.id || '')
 };
 const selectValues = option => (Array.isArray(option?.options) ? option.options : []).flatMap(item => Array.isArray(item?.options) ? item.options : [item]).filter(item => typeof item?.value === 'string' && item.value && item.value.length <= 200);
+const identifier = value => typeof value === 'string' && value.length > 0 && value.length <= 200 && !/[\u0000-\u001f\u007f]/u.test(value);
+const catalogueKey = settings => JSON.stringify({ command: settings.command, args: settings.args, ...(settings.provider === 'acp' ? { agent: settings.agent, model: settings.model } : {}) });
+const claudeAliases = () => [
+  { value: '', label: 'Padrão do provedor', description: 'Usa o modelo padrão configurado no Claude Code.' },
+  { value: 'sonnet', label: 'Sonnet', description: 'Alias oficial do Claude Code para Sonnet.' },
+  { value: 'opus', label: 'Opus', description: 'Alias oficial do Claude Code para Opus.' },
+  { value: 'haiku', label: 'Haiku', description: 'Alias oficial do Claude Code para Haiku.' }
+];
 
 function validateSettings(input) {
   if (!plain(input) || Object.keys(input).some(key => !Object.hasOwn(DEFAULT_SETTINGS, key))) throw error('Configuração de IA inválida. Use somente os campos da seção IA.');
@@ -39,12 +47,12 @@ function validateSettings(input) {
   if (!Array.isArray(settings.args) || settings.args.length > 48 || settings.args.some(item => typeof item !== 'string' || item.length > 4096 || /[\0\r\n]/u.test(item))) throw error('Os argumentos ACP devem ser uma lista de textos curtos.');
   if (settings.provider !== 'acp' && settings.args.length) throw error('Argumentos personalizados estão disponíveis somente para agentes ACP.');
   if (settings.args.some(item => /(?:^|[-_"\s])(?:api[-_]?key|access[-_]?token|auth[-_]?token|token|password|secret)["']?(?:[=: \t]|$)/iu.test(item) || /\b(?:sk-[a-z\d_-]{12,}|bearer\s+\S+)/iu.test(item) || /https?:\/\/[^/\s:@]+:[^/\s@]+@/iu.test(item))) throw error('Credenciais devem ser configuradas no CLI, fora das preferências do notes.');
-  if (settings.provider !== 'acp' && (!/^[\p{L}\p{N}_.:/@+ -]*$/u.test(settings.model) || !/^[\p{L}\p{N}_.:/@+ -]*$/u.test(settings.agent) || settings.model.startsWith('-') || settings.agent.startsWith('-'))) throw error('Nome de modelo ou agente inválido.');
+  if (settings.provider !== 'acp' && (!/^[\p{L}\p{N}_.:/@+ \[\]-]*$/u.test(settings.model) || !/^[\p{L}\p{N}_.:/@+ -]*$/u.test(settings.agent) || settings.model.startsWith('-') || settings.agent.startsWith('-'))) throw error('Nome de modelo ou agente inválido.');
   if (settings.provider === 'codex' && settings.agent && settings.agent !== 'default') throw error('Codex CLI usa o agente padrão. Escolha o modelo no campo Modelo.');
   // ACP values are opaque identifiers announced by the agent, not fixed enums.
   if (settings.provider === 'acp') {
     if (!settings.effort || [settings.model, settings.agent, settings.effort].some(value => /[\u0000-\u001f\u007f]/u.test(value))) throw error('Identificador de configuração ACP inválido.');
-  } else if (!EFFORTS[settings.provider].includes(settings.effort)) throw error('Esforço não reconhecido para este provedor.');
+  } else if (settings.provider === 'codex' ? !identifier(settings.effort) : !EFFORTS[settings.provider].includes(settings.effort)) throw error('Esforço não reconhecido para este provedor.');
   return copy(settings);
 }
 
@@ -63,10 +71,12 @@ class AiRuntime {
     this.maxOutputBytes = maxOutputBytes;
     this.preferences = copy(DEFAULT_SETTINGS);
     this.providers = [];
+    this.catalogueKeys = new Map();
     this.lastError = null;
     this.configError = null;
     this.current = null;
     this.discovery = null;
+    this.discoveryKey = null;
     this.discoveryJob = null;
     this.configuring = null;
     this.connections = new Set();
@@ -102,7 +112,7 @@ class AiRuntime {
       try {
         await fs.writeFile(temporary, JSON.stringify(next, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
         await fs.rename(temporary, this.filename);
-        if (this.preferences.provider !== next.provider || this.preferences.command !== next.command || JSON.stringify(this.preferences.args) !== JSON.stringify(next.args)) this.providers = this.providers.filter(item => item.id !== next.provider);
+        if (this.catalogueKeys.get(next.provider) !== catalogueKey(next) && (this.preferences.provider !== next.provider || this.preferences.command !== next.command || JSON.stringify(this.preferences.args) !== JSON.stringify(next.args))) this.providers = this.providers.filter(item => item.id !== next.provider);
         this.preferences = next;
         this.lastError = null;
         return this.settings();
@@ -141,20 +151,40 @@ class AiRuntime {
     throw error(provider === 'acp' ? 'Configure o caminho do executável do agente ACP na seção IA.' : `${LABELS[provider]} não foi encontrado. Informe o executável instalado na seção IA.`, 'AI_NOT_FOUND');
   }
 
-  async discover() {
+  async discover(inputSettings) {
     if (this.closed) throw error('A IA foi encerrada.');
     if (!this.initialized) await this.init();
+    const settings = validateSettings(inputSettings === undefined ? this.settings() : inputSettings);
+    const key = JSON.stringify(settings);
+    if (this.discovery) {
+      if (this.discoveryKey === key) return this.discovery;
+      await this.discovery.catch(() => {});
+      return this.discover(settings);
+    }
     if (this.current || this.connections.size || this.configuring) throw error('Aguarde a operação de IA terminar.');
-    if (this.discovery) return this.discovery;
     this._assertSpawnAllowed();
+    this.discoveryKey = key;
     this.discoveryJob = { controller: new AbortController(), child: null };
     this.discovery = (async () => {
+      const previous = new Map(this.providers.map(provider => [provider.id, copy(provider)]));
       const providers = [];
       for (const id of Object.keys(LABELS)) {
         if (this.closed || this.discoveryJob.controller.signal.aborted) throw aborted();
-        const descriptor = { id, label: LABELS[id], available: false, command: '', version: '', agents: [{ value: '', label: 'Padrão do provedor' }], efforts: [...EFFORTS[id]] };
+        const selected = settings.provider === id, cached = previous.get(id);
+        // Only the selected provider opens a metadata transport. Switching a
+        // model on an ACP agent does not re-query every other installed CLI.
+        if (!selected && cached) { providers.push(cached); continue; }
+        const descriptor = { id, label: LABELS[id], available: false, command: '', version: '', agents: [{ value: '', label: 'Padrão do provedor' }], efforts: [...EFFORTS[id]], models: [], ...(cached || {}) };
+        delete descriptor.message;
+        delete descriptor.modelWarning;
         try {
-          descriptor.command = await this._findCommand(id, this.preferences.provider === id ? this.preferences.command : '');
+          descriptor.command = await this._findCommand(id, selected ? settings.command : (this.preferences.provider === id ? this.preferences.command : ''));
+          if (selected && cached?.command !== descriptor.command) { descriptor.models = []; delete descriptor.modelsSource; }
+          if (!selected) {
+            descriptor.available = true;
+            providers.push(descriptor);
+            continue;
+          }
           if (id !== 'acp') {
             // Never discover by starting an inference session or opening a login.
             const connection = this._process(this.discoveryJob, descriptor.command, ['--version'], os.tmpdir(), null, { raw: true, timeoutMs: 5000, maxBytes: 64 * 1024 });
@@ -163,25 +193,132 @@ class AiRuntime {
             const version = connection.raw().match(/\b\d+\.\d+\.\d+(?:[-+][\w.-]+)?\b/u)?.[0];
             if (!version) throw error('O CLI não informou uma versão reconhecida.');
             descriptor.version = version;
-          } else {
-            const job = this.discoveryJob;
-            job.directory = await fs.mkdtemp(path.join(os.tmpdir(), 'notes-ai-'));
-            let cleanup = true;
-            try {
-              Object.assign(descriptor, await this._acp(job, descriptor.command, this.preferences, '', { discover: true, timeoutMs: 5000 }));
-            } finally {
-              if (job.connection && !job.connection.isClosed()) try { await job.connection.stop(); } catch { cleanup = false; }
-              if (cleanup) await fs.rm(job.directory, { recursive: true, force: true });
-            }
           }
           descriptor.available = true;
-        } catch (cause) { descriptor.message = cause.code === 'AI_NOT_FOUND' ? 'Executável não encontrado.' : 'Não foi possível verificar este CLI.'; }
+          const job = this.discoveryJob;
+          job.directory = await fs.mkdtemp(path.join(os.tmpdir(), 'notes-ai-'));
+          let cleanup = true;
+          try {
+            if (id === 'acp') Object.assign(descriptor, await this._acp(job, descriptor.command, settings, '', { discover: true, timeoutMs: 5000 }));
+            else {
+              const models = id === 'codex' ? await this._codexModels(job, descriptor.command) : await this._claudeModels(job, descriptor.command);
+              descriptor.models = models;
+              descriptor.modelsSource = id === 'codex' ? 'codex-app-server' : 'claude-cli';
+              descriptor.efforts = [...new Set(['default', ...models.flatMap(model => model.supportedEfforts || [])])];
+              if (!models.length) descriptor.modelWarning = 'O CLI não anunciou modelos nesta consulta. Você pode informar um ID nas opções avançadas.';
+            }
+            this.catalogueKeys.set(id, catalogueKey(settings));
+          } catch (cause) {
+            if (job.controller.signal.aborted || this.closed) throw aborted();
+            if (id === 'claude' && !descriptor.models.length) {
+              descriptor.models = claudeAliases();
+              descriptor.modelsSource = 'provider-aliases';
+              descriptor.modelWarning = 'Não foi possível consultar o catálogo do CLI. Exibindo aliases oficiais do Claude Code; a disponibilidade depende do seu provedor.';
+            } else descriptor.modelWarning = descriptor.models.length
+              ? 'Não foi possível atualizar os modelos. O catálogo anterior foi preservado.'
+              : 'Não foi possível consultar os modelos do CLI. Verifique autenticação e versão ou informe um ID nas opções avançadas.';
+          } finally {
+            if (job.connection && !job.connection.isClosed()) try { await job.connection.stop(); } catch { cleanup = false; }
+            if (cleanup) await fs.rm(job.directory, { recursive: true, force: true });
+          }
+        } catch (cause) {
+          if (this.discoveryJob.controller.signal.aborted || this.closed) throw aborted();
+          descriptor.available = false;
+          descriptor.message = cause.code === 'AI_NOT_FOUND' ? 'Executável não encontrado.' : 'Não foi possível verificar este CLI.';
+          if (selected) descriptor.modelWarning = descriptor.models.length ? 'Não foi possível atualizar os modelos. O catálogo anterior foi preservado.' : descriptor.message;
+        }
         providers.push(descriptor);
       }
       this.providers = providers;
       return { providers: copy(providers) };
     })();
-    try { return await this.discovery; } finally { this.discovery = null; this.discoveryJob = null; }
+    try { return await this.discovery; } finally { this.discovery = null; this.discoveryKey = null; this.discoveryJob = null; }
+  }
+
+  async _codexModels(job, command) {
+    // app-server has no --ignore-user-config flag. Match exec's default OpenAI
+    // provider explicitly, disable integrations, and never open a thread/turn.
+    const args = ['app-server', '--listen', 'stdio://', '--disable', 'shell_tool', '--disable', 'hooks', '--disable', 'apps', '--disable', 'multi_agent', '--disable', 'code_mode', '-c', 'model_provider="openai"', '-c', 'approval_policy="never"', '-c', 'sandbox_mode="read-only"', '-c', 'web_search="disabled"', '-c', 'mcp_servers={}', '-c', 'analytics.enabled=false'];
+    const pending = new Map();
+    let nextId = 0;
+    const connection = this._process(job, command, args, job.directory, message => {
+      if (typeof message.method === 'string') {
+        if (Object.hasOwn(message, 'id')) connection.write(JSON.stringify({ id: message.id, error: { code: -32601, message: 'Esta conexão oferece somente consulta de catálogo.' } }) + '\n');
+        return;
+      }
+      const waiting = pending.get(message.id);
+      if (!waiting) return;
+      pending.delete(message.id);
+      if (message.error || !Object.hasOwn(message, 'result')) waiting.reject(error('O Codex não disponibilizou o catálogo de modelos.', 'AI_MODELS'));
+      else waiting.resolve(message.result);
+    }, { timeoutMs: 10000 });
+    const rejectPending = cause => { for (const waiting of pending.values()) waiting.reject(cause); pending.clear(); };
+    connection.closed.then(() => rejectPending(error('O Codex encerrou a consulta de modelos.', 'AI_MODELS')), rejectPending);
+    const request = (method, params) => new Promise((resolve, reject) => {
+      const id = ++nextId;
+      pending.set(id, { resolve, reject });
+      try { connection.write(JSON.stringify({ id, method, params }) + '\n'); } catch (cause) { pending.delete(id); reject(cause); }
+    });
+    try {
+      await request('initialize', { clientInfo: { name: 'notes', title: 'notes', version: '1.0.0' }, capabilities: { experimentalApi: false, explicitGatewayOauth: true } });
+      connection.write(JSON.stringify({ method: 'initialized', params: {} }) + '\n');
+      const models = new Map(), cursors = new Set();
+      let cursor;
+      for (let page = 0; page < 20; page++) {
+        const result = await request('model/list', { limit: 100, includeHidden: false, ...(cursor ? { cursor } : {}) });
+        if (!Array.isArray(result?.data)) throw error('O Codex retornou um catálogo de modelos inválido.', 'AI_PROTOCOL');
+        for (const item of result.data) {
+          if (!plain(item) || item.hidden === true || !identifier(item.model) || models.has(item.model)) continue;
+          const supportedEfforts = [...new Set((Array.isArray(item.supportedReasoningEfforts) ? item.supportedReasoningEfforts : []).map(option => option?.reasoningEffort).filter(identifier))];
+          const model = { value: item.model, label: typeof item.displayName === 'string' ? item.displayName.slice(0, 200) : item.model, supportedEfforts, isDefault: item.isDefault === true };
+          if (typeof item.description === 'string') model.description = item.description.slice(0, 1000);
+          if (identifier(item.defaultReasoningEffort)) model.defaultEffort = item.defaultReasoningEffort;
+          models.set(model.value, model);
+          if (models.size > 1000) throw error('O catálogo de modelos excedeu o limite de tamanho.', 'AI_OUTPUT_LIMIT');
+        }
+        if (result.nextCursor == null) return [...models.values()];
+        if (typeof result.nextCursor !== 'string' || !result.nextCursor || result.nextCursor.length > 4096 || cursors.has(result.nextCursor)) throw error('A paginação do catálogo de modelos é inválida.', 'AI_PROTOCOL');
+        cursor = result.nextCursor;
+        cursors.add(cursor);
+      }
+      throw error('O catálogo de modelos excedeu o limite de páginas.', 'AI_OUTPUT_LIMIT');
+    } finally { await connection.stop(); }
+  }
+
+  async _claudeModels(job, command) {
+    // This is the Agent SDK's initialize control handshake. There is no user
+    // message: supportedModels() reads this response without starting a turn.
+    const args = ['--print', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--no-session-persistence', '--restricted', '--tools', '', '--disallowedTools', 'mcp__*', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--permission-mode', 'dontAsk', '--permission-prompts', 'none', '--disable-slash-commands', '--no-chrome', '--setting-sources', '', '--settings', '{"disableAllHooks":true}'];
+    const requestId = 'notes-model-catalogue';
+    let resolveModels, rejectModels;
+    const response = new Promise((resolve, reject) => { resolveModels = resolve; rejectModels = reject; });
+    response.catch(() => {});
+    const connection = this._process(job, command, args, job.directory, message => {
+      if (message.type === 'control_request' && typeof message.request_id === 'string') {
+        connection.write(JSON.stringify({ type: 'control_response', response: { subtype: 'error', request_id: message.request_id, error: 'Esta conexão oferece somente consulta de catálogo.' } }) + '\n');
+      } else if (message.type === 'control_response' && message.response?.request_id === requestId) {
+        if (message.response.subtype !== 'success' || !Array.isArray(message.response.response?.models)) rejectModels(error('O Claude Code não disponibilizou o catálogo de modelos.', 'AI_MODELS'));
+        else resolveModels(message.response.response.models);
+      } else if (message.type === 'result') rejectModels(error('O Claude Code não respondeu à consulta de catálogo.', 'AI_MODELS'));
+    }, { timeoutMs: 10000 });
+    connection.closed.then(() => rejectModels(error('O Claude Code encerrou a consulta de modelos.', 'AI_MODELS')), rejectModels);
+    try {
+      connection.write(JSON.stringify({ type: 'control_request', request_id: requestId, request: { subtype: 'initialize', hooks: {}, sdkMcpServers: [], agents: {} } }) + '\n');
+      const values = await response;
+      if (values.length > 1000) throw error('O catálogo de modelos excedeu o limite de tamanho.', 'AI_OUTPUT_LIMIT');
+      const models = new Map();
+      for (const item of values) {
+        if (!plain(item) || !identifier(item.value) || models.has(item.value)) continue;
+        const model = { value: item.value, label: typeof item.displayName === 'string' ? item.displayName.slice(0, 200) : item.value, isDefault: item.value === 'default' };
+        if (typeof item.description === 'string') model.description = item.description.slice(0, 1000);
+        if (Array.isArray(item.supportedEffortLevels)) model.supportedEfforts = [...new Set(item.supportedEffortLevels.filter(identifier))];
+        else if (item.supportsEffort === false) model.supportedEfforts = [];
+        if (identifier(item.defaultEffort)) model.defaultEffort = item.defaultEffort;
+        models.set(model.value, model);
+      }
+      if (!models.size) throw error('O Claude Code não anunciou modelos.', 'AI_MODELS');
+      return [...models.values()];
+    } finally { await connection.stop(); }
   }
 
   _event(job, event) {
@@ -404,7 +541,16 @@ class AiRuntime {
       version: /^[\w.+-]{1,64}$/u.test(initialized?.agentInfo?.version || '') ? initialized.agentInfo.version : '',
       agents: [{ value: '', label: 'Padrão do provedor' }, ...modes.filter(item => item.value)],
       efforts: [...new Set(['default', ...selectValues(option('effort')).map(item => item.value)])],
-      models: selectValues(option('model')).map(item => ({ value: item.value, label: typeof item.name === 'string' ? item.name.slice(0, 200) : item.value }))
+      models: selectValues(option('model')).map(item => {
+        const model = { value: item.value, label: typeof item.name === 'string' ? item.name.slice(0, 200) : item.value };
+        if (typeof item.description === 'string') model.description = item.description.slice(0, 1000);
+        if (item.value === option('model')?.currentValue && option('effort')) {
+          model.supportedEfforts = selectValues(option('effort')).map(value => value.value);
+          if (identifier(option('effort').currentValue)) model.defaultEffort = option('effort').currentValue;
+        }
+        return model;
+      }),
+      modelsSource: 'acp'
     };
     this.providers = [...this.providers.filter(item => item.id !== 'acp'), descriptor];
     return copy(descriptor);

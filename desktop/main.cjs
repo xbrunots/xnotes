@@ -107,7 +107,7 @@ function registerIPC() {
   handle('workspace:save', async (snapshot, base) => store.save(snapshot, {base}));
   handle('ai:status',()=>({...aiRuntime.status(),canUndo:!!aiWorkspace.undoRecord}));
   handle('ai:configure',settings=>{if(closing)throw new Error('A janela está fechando.');return aiRuntime.configure(settings);});
-  handle('ai:discover',()=>aiRuntime.discover());
+  handle('ai:discover',settings=>aiRuntime.discover(settings));
   handle('ai:run',payload=>{if(closing)throw new Error('A janela está fechando.');return aiWorkspace.run(payload);});
   handle('ai:apply',planId=>{if(closing||importing)throw new Error('Aguarde o salvamento ou importação terminar.');return aiWorkspace.apply(planId);});
   handle('ai:undo',()=>{if(closing||importing)throw new Error('Aguarde o salvamento ou importação terminar.');return aiWorkspace.undo();});

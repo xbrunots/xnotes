@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('notes', Object.freeze({
   save: (snapshot, base) => ipcRenderer.invoke('workspace:save', snapshot, base),
   aiStatus: () => ipcRenderer.invoke('ai:status'),
   configureAi: settings => ipcRenderer.invoke('ai:configure',settings),
-  discoverAi: () => ipcRenderer.invoke('ai:discover'),
+  discoverAi: settings => ipcRenderer.invoke('ai:discover',settings),
   runAi: payload => ipcRenderer.invoke('ai:run',payload),
   applyAi: planId => ipcRenderer.invoke('ai:apply',planId),
   undoAi: () => ipcRenderer.invoke('ai:undo'),

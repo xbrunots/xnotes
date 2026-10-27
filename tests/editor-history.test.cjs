@@ -5,17 +5,19 @@ const Module=require('node:module');
 const esbuild=require('esbuild');
 const {Editor}=require('@tiptap/core');
 const {history}=require('@tiptap/pm/history');
+const {TrailingNode}=require('@tiptap/extensions');
+const {TextSelection}=require('@tiptap/pm/state');
 
 const root=path.join(__dirname,'..');
 const built=esbuild.buildSync({
-  stdin:{contents:"export {editorExtensions} from './src/editor-extensions'; export {applyNoteContent} from './src/editor-content';",resolveDir:root},
+  stdin:{contents:"export {editorExtensions} from './src/editor-extensions'; export {applyNoteContent,shouldPersistEditorUpdate} from './src/editor-content';",resolveDir:root},
   bundle:true,write:false,platform:'node',format:'cjs',packages:'external',logLevel:'silent',
 });
 const compiled=new Module(path.join(__dirname,'editor-history-runtime.cjs'),module);
 compiled.filename=path.join(__dirname,'editor-history-runtime.cjs');
 compiled.paths=module.paths;
 compiled._compile(built.outputFiles[0].text,compiled.filename);
-const {editorExtensions,applyNoteContent}=compiled.exports;
+const {editorExtensions,applyNoteContent,shouldPersistEditorUpdate}=compiled.exports;
 
 function editorFor(t,content='Original'){
   const editor=new Editor({element:null,extensions:editorExtensions(),content,contentType:'markdown'});
@@ -25,6 +27,19 @@ function editorFor(t,content='Original'){
   t.after(()=>editor.destroy());
   return editor;
 }
+
+test('foco que acrescenta parágrafo auxiliar não altera a fonte recebida nem invalida desfazer da IA',t=>{
+  const editor=editorFor(t,'# Conteúdo recebido');
+  const plugins=TrailingNode.config.addProseMirrorPlugins.call({editor,options:{node:'paragraph',notAfter:[]}});
+  for(const plugin of plugins)editor.registerPlugin(plugin);
+  const persisted=[],events=[];
+  editor.on('update',event=>{events.push(event);if(shouldPersistEditorUpdate(event.transaction))persisted.push(editor.getMarkdown());});
+  editor.view.dispatch(editor.state.tr.setSelection(TextSelection.atEnd(editor.state.doc)));
+  assert.equal(editor.getJSON().content.at(-1).type,'paragraph','o plugin real acrescenta o campo de digitação');
+  assert.equal(events.length,1);assert.ok(events[0].appendedTransactions.some(tr=>tr.docChanged));
+  assert.deepEqual(persisted,[],'mover foco não pode gravar uma nova versão do documento recebido');
+  editor.commands.insertContentAt(1,{type:'text',text:'Edição real. '});assert.equal(persisted.length,1,'uma mudança de conteúdo do usuário continua salva');
+});
 
 test('undo nunca ressuscita o texto anterior a uma atualização remota Markdown',t=>{
   const editor=editorFor(t);

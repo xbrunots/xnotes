@@ -10,11 +10,11 @@ Crie, edite e organize sua biblioteca com um CLI instalado no computador. A busc
 2. Clique na **engrenagem** da busca. As Configurações abrem diretamente na seção **Inteligência artificial**.
 3. Escolha **Codex CLI**, **Claude Code** ou **Agente ACP**. Use um CLI que já esteja instalado e autenticado fora do notes.
 4. Em **Configuração avançada**, informe o executável se ele não for encontrado automaticamente. Para ACP, informe também os argumentos exigidos pelo agente, **um argumento por linha**.
-5. Clique em **Salvar IA**, depois em **Detectar CLIs**. A detecção usa as configurações salvas; no ACP, ela consulta as opções anunciadas pelo agente.
-6. Escolha agente/modo, esforço e, se necessário, modelo; salve novamente.
+5. Escolha o **Modelo** na lista pesquisável da área principal. O catálogo é carregado ao abrir a seção ou trocar o provedor. Use **Atualizar modelos** depois de alterar o executável ou os argumentos.
+6. Escolha agente/modo e esforço; clique em **Salvar IA**. A consulta do catálogo usa os campos atuais sem gravar suas preferências.
 7. Volte à busca, selecione **Pedir à IA**, escreva seu pedido e pressione **Enter**.
 
-Abrir a busca ou as configurações não inicia uma consulta ao modelo. **Detectar CLIs** consulta a versão dos CLIs nativos; para ACP, inicia a negociação e cria uma sessão sem enviar um pedido ao modelo nem iniciar autenticação. O notes não instala, atualiza ou autentica esses provedores.
+Abrir a busca não inicia uma consulta ao modelo. A seção IA consulta apenas metadados: versão do CLI e catálogo de modelos. Codex usa `app-server` com `model/list`; Claude usa o catálogo anunciado na inicialização, com aliases oficiais como alternativa quando necessário; ACP usa as opções anunciadas pela sessão. Essa descoberta não envia notas, pedidos de geração ou autorização de login. O notes não instala, atualiza ou autentica esses provedores.
 
 No modo **Buscar**, digite para encontrar notas, grupos, sessões e comandos; use as setas e Enter para abrir um resultado. Trocar para **Pedir à IA** permite criar conteúdo ou alterar a organização. O aplicativo mostra progresso, resposta e as alterações efetivamente aplicadas.
 
@@ -25,10 +25,12 @@ No modo **Buscar**, digite para encontrar notas, grupos, sessões e comandos; us
 | Provedor | Adaptador `codex exec` com resposta JSON. | Adaptador não interativo com resposta JSON. | Processo compatível com **ACP v1**, por JSON-RPC em stdio. |
 | Agente | Agente padrão; o campo fica desabilitado. | Padrão ou identificador de agente configurado no CLI. | Agente/modo anunciado pela sessão. |
 | Esforço | Opções oferecidas pelo adaptador; o CLI e o modelo precisam aceitá-las. | Opções oferecidas pelo adaptador; o CLI e o modelo precisam aceitá-las. | Opções anunciadas pelo agente. |
-| Modelo | Opcional; vazio usa o padrão do provedor. | Opcional; vazio usa o padrão do provedor. | Opcional; um valor explícito precisa ter sido anunciado pelo agente. |
+| Modelo | Lista pesquisável do catálogo do CLI. | Lista anunciada pelo CLI ou aliases oficiais identificados. | Lista de modelos anunciados pelo agente. |
 | Executável | Binário nativo detectado ou caminho informado. | Binário nativo detectado ou caminho informado. | Executável informado, com argumentos separados. |
 
 **Padrão do provedor** evita forçar uma opção específica. A disponibilidade de modelos, agentes e níveis de esforço depende da versão do CLI, da conta e do modelo; detectar um executável não comprova acesso a todos eles. Se uma opção ACP não for anunciada, o notes recusa o pedido em vez de fingir que ela foi aplicada.
+
+O seletor de modelo aparece fora de **Configuração avançada**, aceita pesquisa pelo nome ou identificador e preserva a seleção salva. Os esforços são filtrados pelas capacidades anunciadas para o modelo escolhido. Trocar para um modelo incompatível com o esforço atual volta ao padrão do provedor. Um identificador personalizado continua disponível em Avançado; falhas ao atualizar mantêm o catálogo anterior e mostram a situação da consulta.
 
 O campo de executável aceita um programa, não uma linha de shell. Para um agente ACP em JavaScript, por exemplo, use `node.exe` como executável e o caminho do script como um argumento separado. Não use wrappers `.cmd`, `.bat`, `.ps1` ou `.sh`, nem cole senhas, tokens ou chaves nos argumentos. Configure a autenticação no próprio CLI.
 
@@ -118,7 +120,7 @@ QA usa perfis temporários e bloqueia CLIs reais sem um adaptador de teste expl�
 
 ## Referências dos adaptadores
 
-O Codex usa a configuração documentada de esforço e os controles do CLI; consulte a [referência oficial de configuração](https://learn.chatgpt.com/docs/config-file/config-reference). O Claude Code oferece execução não interativa, saída estruturada e seleção de agente/modelo/esforço na [referência oficial do CLI](https://code.claude.com/docs/en/cli-reference). Para ACP, o notes usa as opções anunciadas pela sessão e sua confirmação ao alterá-las, conforme [Session Config Options — ACP v1](https://agentclientprotocol.com/protocol/v1/session-config-options).
+O Codex usa a configuração documentada de esforço e os controles do CLI; consulte a [referência oficial de configuração](https://learn.chatgpt.com/docs/config-file/config-reference) e o método `model/list` do [App Server](https://learn.chatgpt.com/docs/app-server). O Claude Code oferece execução não interativa, saída estruturada e seleção de agente/modelo/esforço na [referência oficial do CLI](https://code.claude.com/docs/en/cli-reference). Para ACP, o notes usa as opções anunciadas pela sessão e sua confirmação ao alterá-las, conforme [Session Config Options — ACP v1](https://agentclientprotocol.com/protocol/v1/session-config-options).
 
 As referências descrevem os provedores; os arquivos e testes deste repositório definem o subconjunto implementado pelo notes. Versões incompatíveis precisam ser ajustadas no CLI/configuração, sem fallback silencioso para execução irrestrita.
 

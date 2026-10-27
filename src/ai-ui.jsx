@@ -146,13 +146,27 @@ function optionsFrom(values=[],labels={},allowEmpty=false){
 }
 
 /** Custom, keyboard-accessible combobox; editable variant accepts provider agent IDs. */
-function AiCombobox({id,label,value,options,onChange,editable=false,placeholder,disabled=false}){
-  const [open,setOpen]=useState(false),[active,setActive]=useState(0);
-  const root=useRef(null),control=useRef(null),listId=id+'-options';
-  const available=editable?options.filter(option=>!value||option.label.toLocaleLowerCase('pt-BR').includes(value.toLocaleLowerCase('pt-BR'))||option.id.toLowerCase().includes(value.toLowerCase())):options;
+function AiCombobox({id,label,value,options,onChange,editable=false,searchable=false,placeholder,disabled=false}){
+  const [open,setOpen]=useState(false),[active,setActive]=useState(0),[filter,setFilter]=useState('');
+  const [menuLayout,setMenuLayout]=useState({side:'below',height:260});
+  const root=useRef(null),control=useRef(null),search=useRef(null),listId=id+'-options';
+  const query=(searchable?filter:editable?value:'').toLocaleLowerCase('pt-BR');
+  const available=query?options.filter(option=>(option.label+' '+option.id).toLocaleLowerCase('pt-BR').includes(query)):options;
   const activeIndex=Math.min(active,Math.max(0,available.length-1));
   const selected=options.find(option=>option.id===value);
   useEffect(()=>{if(disabled)setOpen(false);},[disabled]);
+  useEffect(()=>{if(open&&searchable){setFilter('');search.current?.focus();}},[open,searchable]);
+  useEffect(()=>{
+    if(!open||!searchable)return;
+    const place=()=>{
+      const trigger=root.current?.getBoundingClientRect(),clip=root.current?.closest('.dialog')?.getBoundingClientRect();if(!trigger)return;
+      const top=Math.max(12,clip?.top||0),bottom=Math.min(innerHeight-12,clip?.bottom||innerHeight);
+      const below=bottom-trigger.bottom-12,above=trigger.top-top-12,side=below<200&&above>below?'above':'below',height=Math.max(90,Math.min(260,side==='above'?above:below));
+      setMenuLayout(previous=>previous.side===side&&previous.height===height?previous:{side,height});
+    };
+    place();window.addEventListener('resize',place);document.addEventListener('scroll',place,true);
+    return()=>{window.removeEventListener('resize',place);document.removeEventListener('scroll',place,true);};
+  },[open,searchable]);
   useEffect(()=>{
     if(!open)return;
     const outside=event=>{if(!root.current?.contains(event.target))setOpen(false);};
@@ -165,19 +179,23 @@ function AiCombobox({id,label,value,options,onChange,editable=false,placeholder,
   function choose(option){onChange(option.id);setOpen(false);control.current?.focus();}
   function key(event){
     if(disabled)return;
-    if(event.key==='Escape'&&open){event.preventDefault();event.stopPropagation();setOpen(false);return;}
-    if(event.key==='Tab'){setOpen(false);return;}
+    if(event.key==='Escape'&&open){event.preventDefault();event.stopPropagation();setOpen(false);if(searchable)control.current?.focus();return;}
+    if(event.key==='Tab'){setOpen(false);if(open&&searchable)control.current?.focus();return;}
+    if(searchable&&event.target===search.current&&['Home','End'].includes(event.key))return;
     if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)&&(!editable||event.key==='ArrowDown'||event.key==='ArrowUp')){
       event.preventDefault();event.stopPropagation();
       if(!open){setOpen(true);setActive(Math.max(0,available.findIndex(option=>option.id===value)));}
       else setActive(index=>event.key==='Home'?0:event.key==='End'?available.length-1:Math.max(0,Math.min(available.length-1,index+(event.key==='ArrowDown'?1:-1))));
-    }else if((event.key==='Enter'||(!editable&&event.key===' '))&&open){event.preventDefault();event.stopPropagation();if(available[activeIndex])choose(available[activeIndex]);else setOpen(false);}
-    else if(!editable&&(event.key==='Enter'||event.key===' ')){event.preventDefault();event.stopPropagation();setActive(Math.max(0,available.findIndex(option=>option.id===value)));setOpen(true);}
+    }else if((event.key==='Enter'||(!editable&&event.target===control.current&&event.key===' '))&&open){event.preventDefault();event.stopPropagation();if(available[activeIndex])choose(available[activeIndex]);else setOpen(false);}
+    else if(!editable&&event.target===control.current&&(event.key==='Enter'||event.key===' ')){event.preventDefault();event.stopPropagation();setActive(Math.max(0,available.findIndex(option=>option.id===value)));setOpen(true);}
   }
   const accessibility={id,role:'combobox','aria-label':label,'aria-expanded':open,'aria-controls':listId,'aria-haspopup':'listbox','aria-activedescendant':open&&available.length?listId+'-'+activeIndex:undefined,disabled};
   return <div className={'ai-combobox'+(open?' is-open':'')} ref={root} onKeyDown={key}>
-    {editable?<div className="ai-combobox-editable"><input {...accessibility} ref={control} value={value} autoComplete="off" spellCheck={false} placeholder={placeholder} aria-autocomplete="list" onChange={event=>{onChange(event.target.value);setActive(0);setOpen(true);}}/><button type="button" tabIndex={-1} disabled={disabled} aria-label={'Mostrar opções de '+label.toLocaleLowerCase('pt-BR')} onClick={()=>{setOpen(current=>!current);control.current?.focus();}}><DropdownIcon className={open?'ai-dropdown-icon is-open':'ai-dropdown-icon'}/></button></div>:<button {...accessibility} ref={control} type="button" className="ai-combobox-trigger" onClick={()=>{setActive(Math.max(0,available.findIndex(option=>option.id===value)));setOpen(current=>!current);}}><span>{selected?.label || placeholder || value}</span><DropdownIcon className={open?'ai-dropdown-icon is-open':'ai-dropdown-icon'}/></button>}
-    {open?<ul className="ai-combobox-options" id={listId} role="listbox" aria-label={label}>{available.length?available.map((option,index)=><li id={listId+'-'+index} key={option.id} role="option" aria-selected={option.id===value} className={index===activeIndex?'is-active':''} onMouseEnter={()=>setActive(index)} onMouseDown={event=>event.preventDefault()} onClick={()=>choose(option)}><span><strong>{option.label}</strong>{option.description?<small>{option.description}</small>:null}</span>{option.id===value?<CheckIcon/>:null}</li>):<li className="ai-combobox-no-options" role="presentation">{editable?'Use o identificador do seu agente.':'Nenhuma opção disponível.'}</li>}</ul>:null}
+    {editable?<div className="ai-combobox-editable"><input {...accessibility} ref={control} value={value} autoComplete="off" spellCheck={false} placeholder={placeholder} aria-autocomplete="list" onChange={event=>{onChange(event.target.value);setActive(0);setOpen(true);}}/><button type="button" tabIndex={-1} disabled={disabled} aria-label={'Mostrar opções de '+label.toLocaleLowerCase('pt-BR')} onClick={()=>{setOpen(current=>!current);control.current?.focus();}}><DropdownIcon className={open?'ai-dropdown-icon is-open':'ai-dropdown-icon'}/></button></div>:<button {...accessibility} ref={control} type="button" className="ai-combobox-trigger" onClick={()=>{setActive(Math.max(0,options.findIndex(option=>option.id===value)));setOpen(current=>!current);}}><span>{selected?.label || value || placeholder}</span><DropdownIcon className={open?'ai-dropdown-icon is-open':'ai-dropdown-icon'}/></button>}
+    {open?<div className={'ai-combobox-popup'+(searchable?' is-searchable':'')} data-side={searchable?menuLayout.side:undefined}>
+      {searchable?<input ref={search} className="ai-combobox-search" aria-label="Buscar modelos de IA" role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list" aria-activedescendant={available.length?listId+'-'+activeIndex:undefined} autoComplete="off" spellCheck={false} value={filter} onChange={event=>{setFilter(event.target.value);setActive(0);}} placeholder="Buscar modelo pelo nome ou identificador…"/>:null}
+      <ul className="ai-combobox-options" style={searchable?{maxHeight:Math.max(40,menuLayout.height-58)}:undefined} id={listId} role="listbox" aria-label={label}>{available.length?available.map((option,index)=><li id={listId+'-'+index} key={option.id} role="option" aria-selected={option.id===value} className={index===activeIndex?'is-active':''} onMouseEnter={()=>setActive(index)} onMouseDown={event=>event.preventDefault()} onClick={()=>choose(option)}><span><strong>{option.label}</strong>{option.description?<small>{option.description}</small>:null}</span>{option.id===value?<CheckIcon/>:null}</li>):<li className="ai-combobox-no-options" role="presentation">{searchable?'Nenhum modelo corresponde à busca.':editable?'Use o identificador do seu agente.':'Nenhuma opção disponível.'}</li>}</ul>
+    </div>:null}
   </div>;
 }
 
@@ -185,30 +203,70 @@ function draftFrom(value){
   return {provider:PROVIDERS.some(provider=>provider.id===value?.provider)?value.provider:'codex',command:value?.command || '',argsText:Array.isArray(value?.args)?value.args.join('\n'):'',model:value?.model || '',agent:value?.agent || '',effort:value?.effort || 'default'};
 }
 
-/** Device-local provider configuration. No process is started by mounting this form. */
+const settingsFromDraft=draft=>({provider:draft.provider,command:draft.command.trim(),args:draft.argsText.split(/\r?\n/).filter(line=>line.trim().length),model:draft.model.trim(),agent:draft.agent.trim(),effort:draft.effort});
+const discoveryIdentity=draft=>JSON.stringify([draft.provider,draft.command.trim(),draft.argsText.split(/\r?\n/).filter(line=>line.trim().length),draft.provider==='acp'?draft.agent.trim():'',draft.provider==='acp'?draft.model.trim():'']);
+
+/** Device-local provider configuration. Discovery only requests model metadata. */
 export function AiSettings({value,status,discovery,busy=false,onSave,onDiscover}){
   const settingsKey=JSON.stringify(value || {});
   const [draft,setDraft]=useState(()=>draftFrom(value)),[saving,setSaving]=useState(false),[advanced,setAdvanced]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false);
+  const [catalog,setCatalog]=useState(null),[discovering,setDiscovering]=useState(false),[catalogError,setCatalogError]=useState('');
+  const requestId=useRef(0);
+  const currentDraft=useRef(draft);currentDraft.current=draft;
   const uid=useId().replace(/:/g,''),headingId='ai-settings-title-'+uid;
-  useEffect(()=>{setDraft(draftFrom(value));setError('');},[settingsKey]);
-  const providers=Array.isArray(discovery?.providers)&&discovery.providers.length?discovery.providers:Array.isArray(status?.providers)?status.providers:[];
+  useEffect(()=>{requestId.current++;setDiscovering(false);const incoming=draftFrom(value);if(discoveryIdentity(incoming)!==discoveryIdentity(currentDraft.current))setCatalog({providers:[]});setDraft(incoming);setError('');},[settingsKey]);
+  const providers=catalog?.providers || (Array.isArray(discovery?.providers)&&discovery.providers.length?discovery.providers:Array.isArray(status?.providers)?status.providers:[]);
   const current=providers.find(provider=>provider.id===draft.provider);
+  const announcedModels=current?.models || [];
+  const models=optionsFrom([{value:'',label:'Padrão do provedor',description:'Usar o modelo padrão do CLI.'},...announcedModels],{},true);
+  if(draft.model&&!models.some(option=>option.id===draft.model))models.push({id:draft.model,label:draft.model,description:'Identificador personalizado'});
+  const selectedModel=announcedModels.find(model=>optionValue(model)===draft.model)||(!draft.model?announcedModels.find(model=>model.isDefault):null);
   const providerOptions=PROVIDERS.map(provider=>({...provider,label:providers.find(item=>item.id===provider.id)?.label || provider.label,description:providers.find(item=>item.id===provider.id)?.available?'CLI encontrado':provider.id==='acp'?'Conecte um agente compatível com ACP':undefined}));
-  const efforts=optionsFrom(['default',...(current?.efforts || []),...(draft.effort!=='default'&&!(current?.efforts?.length)?[draft.effort]:[])],EFFORT_LABELS);
+  const availableEfforts=selectedModel?.supportedEfforts || current?.efforts || [];
+  const efforts=optionsFrom(['default',...availableEfforts,...(draft.effort!=='default'&&!availableEfforts.length?[draft.effort]:[])],EFFORT_LABELS);
   const agents=optionsFrom(current?.agents || [],{'':'Padrão do provedor'},true);
   const locked=busy||saving;
   const discoveredError=discovery?.error || status?.lastError || status?.error;
-  function update(field,next){setDraft(previous=>({...previous,[field]:next}));setSaved(false);setError('');}
+  useEffect(()=>{
+    refresh(draft);
+    return()=>{requestId.current++;};
+  },[draft.provider]);
+  async function refresh(candidate=draft){
+    const request=++requestId.current;
+    if(typeof onDiscover!=='function'||(candidate.provider==='acp'&&!candidate.command.trim())){setDiscovering(false);return;}
+    setDiscovering(true);setCatalogError('');
+    try{
+      const result=await onDiscover(settingsFromDraft(candidate));
+      if(requestId.current===request&&discoveryIdentity(candidate)===discoveryIdentity(currentDraft.current)){
+        setCatalog(result);
+        const provider=result?.providers?.find(item=>item.id===candidate.provider),model=provider?.models?.find(item=>optionValue(item)===candidate.model),supported=model?.supportedEfforts||provider?.efforts||[];
+        if(candidate.effort!=='default'&&supported.length&&!supported.map(optionValue).includes(candidate.effort))setDraft(previous=>({...previous,effort:'default'}));
+      }
+    }
+    catch(failure){if(requestId.current===request)setCatalogError(errorText(failure));}
+    finally{if(requestId.current===request)setDiscovering(false);}
+  }
+  function update(field,next){
+    if(['command','argsText'].includes(field)||(draft.provider==='acp'&&['agent','model'].includes(field))){requestId.current++;setDiscovering(false);setCatalog({providers:[]});setCatalogError('');}
+    setDraft(previous=>({...previous,[field]:next}));setSaved(false);setError('');
+  }
+  function chooseModel(model){
+    const nextModel=announcedModels.find(item=>optionValue(item)===model)||(!model?announcedModels.find(item=>item.isDefault):null);
+    const supported=nextModel?.supportedEfforts || current?.efforts || [];
+    const next={...draft,model,effort:supported.map(optionValue).includes(draft.effort)?draft.effort:'default'};
+    setDraft(next);setSaved(false);setError('');
+    if(next.provider==='acp')refresh(next);
+  }
   function chooseProvider(next){
+    requestId.current++;setDiscovering(false);setCatalogError('');
     setDraft(previous=>({...previous,provider:next,command:'',argsText:'',agent:'',model:'',effort:'default'}));setSaved(false);setError('');
   }
   async function save(event){
     event.preventDefault();
     if(locked)return;
-    const args=draft.argsText.split(/\r?\n/).filter(line=>line.trim().length);
     if(draft.provider==='acp'&&!draft.command.trim()&&!current?.command){setError('Informe o executável do agente ACP ou detecte um agente disponível.');setAdvanced(true);return;}
     if(!efforts.some(option=>option.id===draft.effort)){setError('Escolha um esforço disponível para este provedor.');return;}
-    const next={provider:draft.provider,command:draft.command.trim(),args,model:draft.model.trim(),agent:draft.agent.trim(),effort:draft.effort};
+    const next=settingsFromDraft(draft);
     setSaving(true);setError('');setSaved(false);
     try{await onSave?.(next);setSaved(true);}
     catch(failure){setError(errorText(failure));}
@@ -220,15 +278,16 @@ export function AiSettings({value,status,discovery,busy=false,onSave,onDiscover}
     <form onSubmit={save}>
       <div className="ai-settings-grid">
         <div className="ai-settings-field"><label htmlFor={'ai-provider-'+uid}>Provedor</label><AiCombobox id={'ai-provider-'+uid} label="Provedor de IA" value={draft.provider} options={providerOptions} onChange={chooseProvider} disabled={locked}/></div>
-        <div className="ai-settings-field"><label htmlFor={'ai-agent-'+uid}>{draft.provider==='acp'?'Agente / modo':'Agente'}</label><AiCombobox id={'ai-agent-'+uid} label="Agente de IA" value={draft.agent} options={agents} onChange={next=>update('agent',next)} editable placeholder="Padrão do provedor" disabled={locked||draft.provider==='codex'}/><small>{draft.provider==='codex'?'Codex usa seu agente padrão; escolha o modelo em Avançado.':agents.some(agent=>agent.id)?'Escolha um agente anunciado pelo provedor ou informe seu identificador.':'Deixe vazio para usar o agente padrão.'}</small></div>
+        <div className="ai-settings-field"><label htmlFor={'ai-agent-'+uid}>{draft.provider==='acp'?'Agente / modo':'Agente'}</label><AiCombobox id={'ai-agent-'+uid} label="Agente de IA" value={draft.agent} options={agents} onChange={next=>update('agent',next)} editable placeholder="Padrão do provedor" disabled={locked||draft.provider==='codex'}/><small>{draft.provider==='codex'?'Codex usa seu agente padrão. Escolha o modelo abaixo.':agents.some(agent=>agent.id)?'Escolha um agente anunciado pelo provedor ou informe seu identificador.':'Deixe vazio para usar o agente padrão.'}</small></div>
+        <div className="ai-settings-field ai-model-field"><div className="ai-model-label"><label htmlFor={'ai-model-'+uid}>Modelo</label><button type="button" onClick={()=>refresh()} disabled={locked||discovering} title="Atualizar a lista de modelos do provedor"><RefreshIcon/>{discovering?'Carregando…':'Atualizar modelos'}</button></div><AiCombobox id={'ai-model-'+uid} label="Modelo de IA" value={draft.model} options={models} onChange={chooseModel} searchable disabled={locked} placeholder="Padrão do provedor"/><small role="status">{discovering?'Consultando o catálogo do provedor, sem gerar conteúdo…':catalogError || current?.modelWarning || (announcedModels.length?announcedModels.length+' modelos · '+(current?.modelsSource==='provider-aliases'?'aliases oficiais do provedor':'catálogo do CLI'):'Nenhum catálogo carregado. Atualize os modelos ou informe o executável em Avançado.')}</small></div>
         <div className="ai-settings-field"><label htmlFor={'ai-effort-'+uid}>Esforço</label><AiCombobox id={'ai-effort-'+uid} label="Esforço da IA" value={draft.effort} options={efforts} onChange={next=>update('effort',next)} disabled={locked}/><small>{efforts.length>1?'Quanto o agente deve raciocinar sobre o pedido.':'As opções disponíveis dependem do provedor e do modelo.'}</small></div>
-        <div className="ai-settings-detection"><span className={'ai-cli-indicator'+(current?.available?' is-available':'')} aria-hidden="true"/><div><strong>{current?.available?'CLI encontrado':current?.available===false?'CLI não encontrado':'Detectar provedores locais'}</strong><small>{current?.version || (current?.available===false?'Informe um executável ou revise a instalação existente.':'A detecção verifica os CLIs disponíveis nesta máquina.')}</small></div><button type="button" disabled={locked} onClick={onDiscover} title="Detectar CLIs sem iniciar uma conversa"><RefreshIcon/>{busy?'Detectando…':'Detectar CLIs'}</button></div>
+        <div className="ai-settings-detection"><span className={'ai-cli-indicator'+(current?.available?' is-available':'')} aria-hidden="true"/><div><strong>{current?.available?'CLI encontrado':current?.available===false?'CLI não encontrado':'Detectar provedores locais'}</strong><small>{current?.version || (current?.available===false?'Informe um executável ou revise a instalação existente.':'A lista é carregada sem iniciar uma conversa.')}</small></div></div>
       </div>
       <button type="button" className="ai-settings-advanced-trigger" aria-expanded={advanced} aria-controls={'ai-advanced-'+uid} onClick={()=>setAdvanced(current=>!current)}>Configuração avançada<DropdownIcon className={advanced?'ai-dropdown-icon is-open':'ai-dropdown-icon'}/></button>
       {advanced?<div className="ai-settings-advanced" id={'ai-advanced-'+uid}>
         <div className="ai-settings-field"><label htmlFor={'ai-command-'+uid}>Executável {draft.provider==='acp'?'do agente ACP':'do CLI'}</label><input id={'ai-command-'+uid} type="text" value={draft.command} onChange={event=>update('command',event.target.value)} disabled={locked} autoComplete="off" spellCheck={false} placeholder={current?.command || (draft.provider==='acp'?'C:\\caminho\\agente.exe':'Padrão detectado no sistema')}/><small>Um executável ou caminho, sem comandos de shell.</small></div>
         {draft.provider==='acp'?<div className="ai-settings-field"><label htmlFor={'ai-args-'+uid}>Argumentos do agente ACP</label><textarea id={'ai-args-'+uid} value={draft.argsText} onChange={event=>update('argsText',event.target.value)} disabled={locked} rows={3} autoComplete="off" spellCheck={false} placeholder="Um argumento por linha"/><small>Cada linha é um argumento separado. Use os argumentos ACP documentados pelo seu agente.</small></div>:null}
-        <div className="ai-settings-field"><label htmlFor={'ai-model-'+uid}>Modelo <span>opcional</span></label><input id={'ai-model-'+uid} type="text" value={draft.model} onChange={event=>update('model',event.target.value)} disabled={locked} autoComplete="off" spellCheck={false} placeholder="Padrão do provedor"/><small>Informe um identificador aceito pelo seu provedor.</small></div>
+        <div className="ai-settings-field"><label htmlFor={'ai-custom-model-'+uid}>Identificador de modelo personalizado</label><input id={'ai-custom-model-'+uid} type="text" value={draft.model} onChange={event=>update('model',event.target.value)} disabled={locked} autoComplete="off" spellCheck={false} placeholder="Opcional: modelo que não aparece no catálogo"/><small>Use um identificador aceito pelo CLI. Para modelos do catálogo, use a lista acima.</small></div>
       </div>:null}
       <div className="ai-settings-privacy"><SettingsIcon size={14}/><p>O CLI roda na sua máquina. O modelo pode usar a nuvem do provedor. Estas configurações ficam neste computador e não vão para o Git.</p></div>
       {(error||discoveredError)?<p className="ai-settings-error" role="alert">{error || errorText(discoveredError)}</p>:null}

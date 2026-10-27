@@ -87,6 +87,15 @@
 .dialog .ai-settings-heading p{font-size:11.5px;color:var(--ink-3);margin:0;line-height:1.5}
 .dialog .ai-settings-intro{font-size:12px;line-height:1.7;color:var(--ink-3);margin:0 0 18px}
 .ai-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px 14px;align-items:start}
+.ai-model-field{grid-column:1/-1}
+.ai-model-label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ai-model-label>label{font-size:11.5px;color:var(--ink-2);font-weight:500}
+.dialog .ai-model-label>button{display:flex;align-items:center;gap:6px;padding:3px 5px;border:0;background:transparent;color:var(--acc-ink);font-size:10.5px}
+.ai-combobox-popup.is-searchable{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:35;padding:7px;border:1px solid var(--line-strong);border-radius:11px;background:var(--glass-strong);backdrop-filter:blur(40px) saturate(170%);box-shadow:var(--pane-shadow)}
+.ai-combobox-popup.is-searchable[data-side=above]{top:auto;bottom:calc(100% + 6px)}
+.ai-combobox-popup.is-searchable>.ai-combobox-options{position:static;margin:5px 0 0;padding:0;border:0;background:transparent;box-shadow:none;backdrop-filter:none;animation:none}
+.ai-combobox-search{display:block;box-sizing:border-box;width:100%;height:33px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink);font:inherit;font-size:11.5px;outline-color:var(--acc-ink)}
+.ai-combobox-search::placeholder{color:var(--ink-3)}
 .ai-settings-field{display:flex;flex-direction:column;gap:7px;min-width:0}
 .ai-settings-field>label{font-size:11.5px;color:var(--ink-2);font-weight:500}
 .ai-settings-field>label>span{margin-left:4px;font-weight:400;font-size:10.5px;color:var(--ink-3)}

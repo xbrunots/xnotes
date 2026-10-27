@@ -2,6 +2,34 @@
 
 Este registro separa a preparação pública atual dos marcos anteriores. Resultados históricos não significam reexecução no estado atual do código. Uma configuração de CI também não representa uma execução remota aprovada.
 
+## Correção do catálogo de modelos de IA — 27/10/2026
+
+O campo manual de modelo foi substituído, na área principal das configurações, por uma lista pesquisável alimentada pelos metadados do provedor. A descoberta usa o formulário atual sem salvar preferências, filtra esforços por modelo e descarta respostas de configurações já alteradas. Veja [IA local](IA_LOCAL.md).
+
+| Verificação | Resultado e escopo |
+| --- | --- |
+| `node --test tests/ai-runtime.test.cjs tests/ai-workspace.test.cjs tests/renderer.test.cjs tests/editor-history.test.cjs tests/note-content.test.cjs` | **63/63 passaram**, zero falhas ou testes ignorados. Inclui 26 testes de runtime, paginação, falhas de catálogo, rascunhos concorrentes e protocolos sem prompt. A suíte completa do marco anterior não foi repetida nesta rodada. |
+| `npm run test:ai-ui` | **17 verificações passaram** no Electron real. Catálogo automático, pesquisa com espaços, esforço compatível, preferências, executável ainda não salvo, falha com catálogo preservado, resposta obsoleta descartada e lista de 26 modelos em 960 × 640. Criação, edição, desfazer, concorrência, cancelamento e reinício também passaram. |
+| `npm run test:ui` e `npm run test:code-ui` | Aprovados com perfis temporários: edição visual, Markdown, formatação, importação, menus, Monaco offline, Undo/Redo e persistência. |
+| `npm run test:github-ui` | Aprovado na reexecução isolada: temas, sincronização entre dois perfis com remoto bare local e resolução visual de conflito. A primeira execução da sequência parou em um clique interceptado pelo backdrop; a reexecução passou sem alteração no produto. O teste agora captura o estado sintético se a falha reaparecer. |
+| Compatibilidade dos CLIs instalados | Consulta manual **somente de metadados**, com diretórios temporários: Codex **0.162.1** retornou **8 modelos** por `model/list`; Claude Code **2.1.296** retornou **13 modelos** pela inicialização de controle. Nenhuma nota, prompt de geração ou fluxo de login foi enviado. Isso não valida inferência ou acesso da conta a cada modelo. |
+| Regressão do editor | O plugin real de parágrafo auxiliar reproduz a atualização de foco/seleção sem alteração de conteúdo na transação original. Ela não é persistida; uma edição real continua sendo salva. Isso preserva o desfazer do lote da IA. |
+| Revisão independente | Aceitou os transportes de metadados, paginação, validação do rascunho, proteção contra respostas obsoletas e guarda de persistência do editor. Revisão de código, sem CLIs reais. |
+| Documentação | **20 Markdown e 395 links/recursos locais** válidos. Capturas atualizadas no Electron com dados e provedor sintéticos. |
+| `npm run dist` e conferência | Novo portable Windows x64 gerado; **22 arquivos do ASAR** correspondem às fontes/build atuais. Metadados de produção conferidos, sem perfis privados ou exportações pessoais. |
+| `npm run test:portable` | **57 verificações passaram** no novo EXE, incluindo seletor de modelo visível, escolha persistida após reiniciar, salvamento, formatação rica, Notion e Monaco offline. QA bloqueia execução de CLI real. |
+
+A validação inicial do EXE revelou uma corrida da automação: o DOM já tinha movido o cursor com Ctrl+End, mas o ProseMirror ainda mantinha a seleção anterior quando o teste enviava Enter. O teste agora mantém a tecla nativa, aguarda a seleção efetiva do editor no fim e verifica o título formatado após colar código. A conferência de cor também espera o token Monaco conectado após a troca de linguagem. A reexecução passou com o mesmo EXE, sem alteração do produto para esses dois casos.
+
+### Portable com catálogo de modelos validado
+
+- Arquivo: `portable/notes-1.0.0-Windows-x64-portable.exe`.
+- Tamanho: **137.493.100 bytes**.
+- SHA-256: `404656431ec4361a42b1e1f7894066a0d655f679421707b95715226cc0ddcd1d`.
+- Validação concluída: `2026-10-27T22:39:30.427Z`.
+- Checksum: `portable/SHA256SUMS.txt`.
+- Evidência local: `%TEMP%/notes-qa/portable-validation.json`.
+
 ## Busca central e IA local por CLI/ACP — 27/10/2026
 
 A busca central reúne notas, grupos, sessões e comandos com o modo **Pedir à IA**. A engrenagem abre diretamente a seção IA, com provedor, agente, esforço e opções avançadas locais. O [guia da integração](IA_LOCAL.md) descreve uso, contrato e limites.

@@ -15,7 +15,7 @@ Write visually, connect ideas and keep code alongside its context. Your library 
 - Edit rich text, paste Markdown, and work with headings, tables, tasks and links.
 - Keep editable Monaco code blocks with 84 languages and local workers. Code is stored as content and never executed.
 - Organize groups, sessions, tags and linked notes. Open multiple tabs in single, side-by-side or masonry views.
-- Use the central search box to create, edit and organize notes, groups and sessions through Codex CLI, Claude Code or an ACP v1 agent. Configure provider, agent and reasoning effort from the search settings shortcut.
+- Use the central search box to create, edit and organize notes, groups and sessions through Codex CLI, Claude Code or an ACP v1 agent. Configure provider, agent, model and reasoning effort from the search settings shortcut, with a searchable model catalog loaded from the CLI.
 - Choose 10 global themes, 20 note styles and two workspace appearances.
 - Connect to Notion, review an inventory and coverage gaps before importing, or use full exports and Obsidian vaults while preserving source files. See the [migration guide](docs/IMPORTACAO_NOTION.md).
 - Work offline, export ZIP backups and synchronize manually or daily with Git history and conflict review.

@@ -246,7 +246,7 @@ test('stdout/stderr bounds and oversized context reject without retaining reques
   assert.equal(f.fake.calls.length, 0);
 });
 
-test('discovery uses read-only native versions and an ACP handshake without any model prompt', async t => {
+test('ACP discovery inspects only the selected agent and preserves other provider descriptors', async t => {
   const f = await setup(t, record => {
     if (record.args[0] === '--version') setImmediate(() => { record.child.stdout.write('provider-cli 1.2.3\n'); record.close(); });
     else acpHandler()(record);
@@ -255,16 +255,15 @@ test('discovery uses read-only native versions and an ACP handshake without any 
   const result = await f.runtime.discover();
   assert.equal(result.providers.length, 3);
   assert.ok(result.providers.every(provider => provider.available));
-  assert.equal(f.fake.calls.length, 3);
-  for (const call of f.fake.calls.slice(0, 2)) assert.deepEqual(call.args, ['--version']);
-  const acp = f.fake.calls[2];
+  assert.equal(f.fake.calls.length, 1);
+  const acp = f.fake.calls[0];
   assert.deepEqual(acp.messages.map(item => item.method), ['initialize', 'session/new']);
   assert.equal(acp.killed, true);
   await assert.rejects(fs.stat(acp.options.cwd), { code: 'ENOENT' });
   assert.equal(result.providers.find(item => item.id === 'acp').version, '');
   assert.deepEqual(result.providers.find(item => item.id === 'acp').efforts, ['default', 'low', 'high']);
   assert.deepEqual(result.providers.find(item => item.id === 'acp').agents.map(item => item.value), ['', 'ask', 'writer']);
-  assert.equal(result.providers.find(item => item.id === 'codex').version, '1.2.3');
+  assert.equal(result.providers.find(item => item.id === 'codex').version, '');
   result.providers[0].efforts.push('outside');
   assert.equal(f.runtime.status().providers[0].efforts.includes('outside'), false);
 });
@@ -276,6 +275,185 @@ test('close cancels a version discovery and does not start further CLIs', async 
   await f.runtime.close(); await rejected;
   assert.equal(f.fake.calls.length, 1);
   assert.equal(f.fake.calls[0].killed, true);
+});
+
+function metadataHandler(options = {}) {
+  return record => {
+    if (record.args[0] === '--version') {
+      setImmediate(() => { record.child.stdout.write('provider-cli 1.2.3\n'); record.close(); });
+      return;
+    }
+    if (record.args[0] === 'app-server') {
+      record.onMessage = message => {
+        if (!message.method) return;
+        const respond = result => record.send({ id: message.id, result }, 1);
+        if (message.method === 'initialize') {
+          assert.equal(message.params.clientInfo.name, 'notes');
+          assert.equal(message.params.capabilities.explicitGatewayOauth, true);
+          respond({ userAgent: 'fixture', codexHome: 'fixture-private-path', platformFamily: 'windows', platformOs: 'windows' });
+        } else if (message.method === 'model/list') {
+          assert.equal(record.messages[1].method, 'initialized');
+          assert.equal(message.params.includeHidden, false);
+          if (options.onCodexList?.(record, message)) return;
+          const page = options.pages?.find(item => (item.cursor || undefined) === message.params.cursor);
+          respond(page?.result || { data: [{ id: 'row-fixture', model: 'fixture-model', displayName: 'Modelo sintético', description: 'Catálogo sintético', isDefault: true, defaultReasoningEffort: 'medium', supportedReasoningEfforts: [{ reasoningEffort: 'medium' }, { reasoningEffort: 'high' }] }], nextCursor: null });
+        } else assert.equal(message.method, 'initialized', 'model discovery must not open threads, turns or login');
+      };
+      return;
+    }
+    if (record.args.includes('--input-format')) {
+      record.onMessage = message => {
+        assert.equal(message.type, 'control_request');
+        assert.equal(message.request.subtype, 'initialize');
+        assert.deepEqual(message.request.hooks, {});
+        assert.deepEqual(message.request.sdkMcpServers, []);
+        if (options.onClaudeInitialize?.(record, message)) return;
+        record.send({ type: 'control_response', response: { subtype: 'success', request_id: message.request_id, response: {
+          account: { email: 'fixture-private-email', token: 'fixture-private-token' },
+          models: [
+            { value: 'default', displayName: 'Padrão sintético', description: 'Padrão do CLI', supportedEffortLevels: ['low', 'high'] },
+            { value: 'fixture-claude[1m]', displayName: 'Claude sintético', description: 'Catálogo local sintético', supportsEffort: false }
+          ]
+        } } }, 2);
+      };
+      return;
+    }
+    acpHandler(options.acp)(record);
+  };
+}
+
+test('Codex metadata discovery paginates live models and capabilities without opening a thread', async t => {
+  const f = await setup(t, metadataHandler({ pages: [
+    { result: { data: [
+      { id: 'different-row-id', model: 'fixture-fast', displayName: 'Rápido 😀', description: 'Descrição sintética', defaultReasoningEffort: 'low', supportedReasoningEfforts: [{ reasoningEffort: 'low' }, { reasoningEffort: 'high' }], isDefault: true },
+      { model: 'fixture-hidden', hidden: true }
+    ], nextCursor: 'page-two' } },
+    { cursor: 'page-two', result: { data: [
+      { model: 'fixture-deep', displayName: 'Profundo', defaultReasoningEffort: 'custom-effort', supportedReasoningEfforts: [{ reasoningEffort: 'custom-effort' }], isDefault: false },
+      { model: 'fixture-fast', displayName: 'Duplicate ignored' }
+    ], nextCursor: null } }
+  ] }));
+  const result = await f.runtime.discover();
+  const provider = result.providers.find(item => item.id === 'codex');
+  assert.equal(provider.modelsSource, 'codex-app-server');
+  assert.deepEqual(provider.models, [
+    { value: 'fixture-fast', label: 'Rápido 😀', supportedEfforts: ['low', 'high'], isDefault: true, description: 'Descrição sintética', defaultEffort: 'low' },
+    { value: 'fixture-deep', label: 'Profundo', supportedEfforts: ['custom-effort'], isDefault: false, defaultEffort: 'custom-effort' }
+  ]);
+  assert.deepEqual(provider.efforts, ['default', 'low', 'high', 'custom-effort']);
+  assert.equal(provider.modelWarning, undefined);
+  assert.equal(f.fake.calls.length, 2);
+  const server = f.fake.calls[1];
+  assert.deepEqual(server.messages.map(item => item.method), ['initialize', 'initialized', 'model/list', 'model/list']);
+  assert.equal(server.messages.at(-1).params.cursor, 'page-two');
+  for (const flag of ['model_provider="openai"', 'sandbox_mode="read-only"', 'approval_policy="never"', 'web_search="disabled"', 'mcp_servers={}']) assert.ok(server.args.includes(flag));
+  for (const feature of ['hooks', 'apps', 'shell_tool', 'multi_agent', 'code_mode']) assert.equal(server.args[server.args.indexOf(feature) - 1], '--disable');
+  assert.equal(server.options.shell, false); assert.equal(server.options.windowsHide, true);
+  assert.equal(server.killed, true);
+  await assert.rejects(fs.stat(server.options.cwd), { code: 'ENOENT' });
+  assert.doesNotMatch(JSON.stringify(result), /fixture-private/u);
+  assert.deepEqual(await fs.readdir(path.join(f.directory, 'ai')), []);
+  await f.runtime.configure({ model: 'fixture-deep', effort: 'custom-effort' });
+});
+
+test('Claude metadata uses the SDK initialize response and never sends a user message', async t => {
+  const f = await setup(t, metadataHandler());
+  const draft = { provider: 'claude', command: path.join(f.bin, 'claude.exe'), model: 'fixture-claude[1m]' };
+  const result = await f.runtime.discover(draft);
+  const provider = result.providers.find(item => item.id === 'claude');
+  assert.equal(provider.modelsSource, 'claude-cli');
+  assert.deepEqual(provider.models, [
+    { value: 'default', label: 'Padrão sintético', isDefault: true, description: 'Padrão do CLI', supportedEfforts: ['low', 'high'] },
+    { value: 'fixture-claude[1m]', label: 'Claude sintético', isDefault: false, description: 'Catálogo local sintético', supportedEfforts: [] }
+  ]);
+  const process = f.fake.calls[1];
+  assert.equal(process.messages.length, 1);
+  assert.equal(process.messages[0].type, 'control_request');
+  assert.equal(process.args[process.args.indexOf('--tools') + 1], '');
+  assert.equal(process.args[process.args.indexOf('--setting-sources') + 1], '');
+  assert.equal(process.args[process.args.indexOf('--settings') + 1], '{"disableAllHooks":true}');
+  assert.equal(process.args[process.args.indexOf('--mcp-config') + 1], '{"mcpServers":{}}');
+  assert.equal(process.killed, true);
+  assert.deepEqual(f.runtime.settings(), DEFAULT_SETTINGS);
+  assert.deepEqual(await fs.readdir(path.join(f.directory, 'ai')), []);
+  assert.doesNotMatch(JSON.stringify(f.runtime.status()), /fixture-private/u);
+  await f.runtime.configure(draft);
+  assert.deepEqual(f.runtime.status().providers.find(item => item.id === 'claude').models, provider.models, 'saving a discovered draft must preserve its catalogue');
+});
+
+test('metadata failure preserves prior provider catalogues and exposes explicit Claude aliases fallback', async t => {
+  let fail = false;
+  const f = await setup(t, metadataHandler({ onCodexList(record, message) {
+    if (!fail) return false;
+    record.send({ id: message.id, error: { code: -32000, message: 'fixture-private-error' } });
+    return true;
+  }, onClaudeInitialize(record, message) {
+    record.send({ type: 'control_response', response: { subtype: 'error', request_id: message.request_id, error: 'fixture-private-error' } });
+    return true;
+  } }));
+  const initial = await f.runtime.discover();
+  fail = true;
+  const failed = await f.runtime.discover();
+  const prior = initial.providers.find(item => item.id === 'codex'), preserved = failed.providers.find(item => item.id === 'codex');
+  assert.deepEqual(preserved.models, prior.models);
+  assert.equal(preserved.modelsSource, 'codex-app-server');
+  assert.match(preserved.modelWarning, /anterior foi preservado/u);
+  const claude = (await f.runtime.discover({ provider: 'claude' })).providers.find(item => item.id === 'claude');
+  assert.equal(claude.modelsSource, 'provider-aliases');
+  assert.deepEqual(claude.models.map(item => item.value), ['', 'sonnet', 'opus', 'haiku']);
+  assert.match(claude.modelWarning, /aliases oficiais/u);
+  assert.deepEqual(f.runtime.status().providers.find(item => item.id === 'codex').models, prior.models);
+  assert.doesNotMatch(JSON.stringify(f.runtime.status()), /fixture-private/u);
+});
+
+test('discovery accepts an unsaved ACP draft without changing persisted preferences', async t => {
+  const f = await setup(t, metadataHandler({ acp: { customEffort: 'thinking(32k)' } }));
+  await f.runtime.configure(DEFAULT_SETTINGS);
+  const bytes = await fs.readFile(path.join(f.directory, 'ai', 'settings.json'));
+  const draft = { provider: 'acp', command: path.join(f.bin, 'agent.exe'), args: ['--stdio-fixture'], model: 'fixture-model', effort: 'obsolete-value' };
+  const result = await f.runtime.discover(draft);
+  const provider = result.providers.find(item => item.id === 'acp');
+  assert.equal(provider.modelsSource, 'acp');
+  assert.deepEqual(provider.models, [{ value: 'fixture-model', label: 'Fixture', supportedEfforts: ['low', 'thinking(32k)'], defaultEffort: 'low' }]);
+  assert.deepEqual(f.fake.calls[0].args, ['--stdio-fixture']);
+  assert.deepEqual(f.fake.calls[0].messages.map(item => item.method), ['initialize', 'session/new', 'session/set_config_option']);
+  assert.equal(f.fake.calls[0].messages.at(-1).params.configId, 'model');
+  assert.deepEqual(f.runtime.settings(), DEFAULT_SETTINGS);
+  assert.deepEqual(await fs.readFile(path.join(f.directory, 'ai', 'settings.json')), bytes);
+  const calls = f.fake.calls.length;
+  await assert.rejects(f.runtime.discover({ provider: 'acp', args: ['--api-key', 'fixture'] }));
+  assert.equal(f.fake.calls.length, calls);
+});
+
+test('same discovery drafts share a request; different drafts are serialized and return their own catalogue', async t => {
+  let held;
+  const f = await setup(t, metadataHandler({ onCodexList(record, message) { held = { record, message }; return true; } }));
+  const codexDraft = { provider: 'codex', model: 'fixture-model' };
+  const first = f.runtime.discover(codexDraft);
+  while (!held) await new Promise(resolve => setImmediate(resolve));
+  const same = f.runtime.discover({ ...codexDraft });
+  const next = f.runtime.discover({ provider: 'acp', command: path.join(f.bin, 'agent.exe'), model: 'fixture-model' });
+  assert.equal(f.fake.calls.length, 2);
+  held.record.send({ id: held.message.id, result: { data: [{ model: 'fixture-queued-model', displayName: 'Primeiro', supportedReasoningEfforts: [] }], nextCursor: null } });
+  const [a, b, c] = await Promise.all([first, same, next]);
+  assert.deepEqual(a, b);
+  assert.equal(a.providers.find(item => item.id === 'codex').models[0].value, 'fixture-queued-model');
+  assert.equal(c.providers.find(item => item.id === 'acp').models[0].value, 'fixture-model');
+  assert.equal(c.providers.find(item => item.id === 'codex').models[0].value, 'fixture-queued-model');
+  assert.equal(f.fake.calls.length, 3);
+  assert.deepEqual(f.runtime.settings(), DEFAULT_SETTINGS);
+});
+
+test('Codex repeated pagination cursors fail closed without publishing a partial catalogue', async t => {
+  const f = await setup(t, metadataHandler({ onCodexList(record, message) {
+    record.send({ id: message.id, result: { data: [{ model: 'fixture-partial', displayName: 'Incomplete' }], nextCursor: 'repeat' } });
+    return true;
+  } }));
+  const provider = (await f.runtime.discover()).providers.find(item => item.id === 'codex');
+  assert.deepEqual(provider.models, []);
+  assert.match(provider.modelWarning, /Não foi possível consultar/u);
+  assert.equal(f.fake.calls[1].messages.filter(item => item.method === 'model/list').length, 2);
+  assert.equal(f.fake.calls[1].killed, true);
 });
 
 test('Windows Explorer launch finds the conventional user-local Codex binary outside PATH', async t => {

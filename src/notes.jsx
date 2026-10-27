@@ -248,12 +248,7 @@ export class Notes extends ReferenceNotes {
     const aiStatus=await window.notes.aiStatus();
     if(this.mounted)this.setState({aiStatus});
   };
-  discoverAi=async()=>{
-    this.setState({aiSettingsBusy:true,aiDiscoveryError:''});
-    try{const aiDiscovery=await window.notes.discoverAi();if(this.mounted)this.setState({aiDiscovery,aiStatus:await window.notes.aiStatus()});}
-    catch(error){if(this.mounted)this.setState({aiDiscoveryError:error.message});}
-    finally{if(this.mounted)this.setState({aiSettingsBusy:false});}
-  };
+  discoverAi=settings=>window.notes.discoverAi(settings);
   submitAi=async prompt=>{
     if(this.aiRequest||this.state.aiBusy||!prompt.trim())return;
     const request={cancelled:false};this.aiRequest=request;

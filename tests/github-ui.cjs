@@ -14,9 +14,9 @@ async function main(){
   const dataDir=await fs.mkdtemp(path.join(os.tmpdir(),'notes-github-ui-'));await fs.mkdir(artifacts,{recursive:true});
   const remote=path.join(dataDir,'remote.git');execFileSync('git',['init','--bare','--initial-branch=main',remote],{windowsHide:true});
   const env={...process.env,NOTES_TEST:'1',NOTES_TEST_DATA_DIR:dataDir,NOTES_TEST_SHOW_ONBOARDING:'1'};delete env.ELECTRON_RUN_AS_NODE;
-  let app,b,btools,bsync;
+  let app,page,b,btools,bsync;
   try{
-    app=await electron.launch({args:[root],env,timeout:30000});const page=await app.firstWindow(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+    app=await electron.launch({args:[root],env,timeout:30000});page=await app.firstWindow();const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.setViewportSize({width:1440,height:900});
     await page.getByRole('dialog',{name:'GitHub',exact:true}).waitFor();
     assert(await page.getByRole('button',{name:'Conectar GitHub',exact:true}).isEnabled());
@@ -119,6 +119,9 @@ async function main(){
     assert.equal((await bsync.sync()).state,'ready');assert(b.snapshot.notes.find(note=>note.id==='color-note').body.includes('Texto do GitHub.'));
     assert.deepEqual(errors,[]);
     console.log('PASS: tema sincroniza entre PCs; conflito abre diff visual Local/GitHub, decisão é versionada e propagada sem Markdown visível.');
+  }catch(error){
+    if(page){await page.screenshot({path:path.join(artifacts,'notes-github-failure.png')}).catch(()=>{});console.error('GitHub QA state:',await page.evaluate(async()=>({dialogs:[...document.querySelectorAll('[role=dialog]')].map(element=>element.innerText),sync:(await window.notes.bootstrap()).sync})).catch(()=>({closed:true})));}
+    throw error;
   }finally{
     if(bsync)await bsync.close();if(btools)await btools.close();if(b)await b.close();
     if(app){await app.evaluate(async({app})=>{await global.__notesTest.sync.close();await global.__notesTest.tools.close();await global.__notesTest.store.close();app.exit(0);}).catch(()=>{});await app.close().catch(()=>{});}

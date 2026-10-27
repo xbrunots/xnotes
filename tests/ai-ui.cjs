@@ -32,9 +32,15 @@ async function main(){
 
     await app.evaluate(async()=>{
       const runtime=global.__notesTest.createAiRuntime();await runtime.init();
-      const fixture={calls:[],mode:'create',cancelled:false};global.__aiFixture=fixture;
-      const providers=[{id:'codex',label:'Codex CLI',available:true,version:'fixture',command:'C:\\AI Fixture\\codex.exe',agents:[],efforts:['default','low','medium','high']},{id:'claude',label:'Claude Code',available:true,version:'fixture',command:'C:\\AI Fixture\\claude.exe',agents:[{value:'writer',label:'writer'}],efforts:['default','low','medium','high']},{id:'acp',label:'Agente ACP',available:false,agents:[],efforts:['default']}];
-      runtime.discover=async()=>{runtime.providers=providers;return {providers};};
+      const fixture={calls:[],discoveryCalls:[],mode:'create',cancelled:false,failDiscovery:false};global.__aiFixture=fixture;
+      const providers=[{id:'codex',label:'Codex CLI',available:true,version:'fixture',command:'C:\\AI Fixture\\codex.exe',agents:[],efforts:['default','low','medium','high'],models:[{value:'fixture-balanced',label:'Codex Example Balanced',supportedEfforts:['low','medium'],isDefault:true},{value:'fixture-deep',label:'Codex Example Deep',supportedEfforts:['high','xhigh']}]},{id:'claude',label:'Claude Code',available:true,version:'fixture',command:'C:\\AI Fixture\\claude.exe',agents:[{value:'writer',label:'writer'}],efforts:['default','low','medium','high'],models:[{value:'fixture-model',label:'Claude Example Writer',supportedEfforts:['low','medium','high'],isDefault:true},{value:'fixture-fast',label:'Claude Example Fast',supportedEfforts:['low']}]},{id:'acp',label:'Agente ACP',available:false,agents:[],efforts:['default'],models:[]}];
+      runtime.discover=async draft=>{
+        fixture.discoveryCalls.push(structuredClone(draft));if(fixture.failDiscovery)throw new Error('Falha sintética ao atualizar o catálogo.');
+        const result=structuredClone(providers);
+        if(fixture.holdDiscovery){fixture.discoveryWaiting=true;await new Promise(resolve=>{fixture.releaseDiscovery=resolve;});fixture.discoveryWaiting=false;result.find(p=>p.id===draft.provider).models=[{value:'old-model',label:'Catálogo antigo'}];}
+        if(fixture.manyModels)result.find(p=>p.id===draft.provider).models.push(...Array.from({length:24},(_,index)=>({value:'fixture-extra-'+index,label:'Extra Model '+index,supportedEfforts:['low']})));
+        runtime.providers=result;return {providers:result};
+      };
       runtime.run=async payload=>{
         fixture.calls.push({prompt:payload.prompt,context:JSON.parse(payload.context)});fixture.cancelled=false;
         if(fixture.mode==='hold')await new Promise((resolve,reject)=>{fixture.release=resolve;payload.signal.addEventListener('abort',()=>{fixture.cancelled=true;reject(new Error('Cancelado sintético'));},{once:true});});
@@ -57,14 +63,34 @@ async function main(){
     const search=palette.getByRole('combobox',{name:'Buscar notas, grupos, sessões ou comandos',exact:true});await search.fill('Atlas');assert.ok(await palette.getByRole('option').count()>0);await search.press('ArrowDown');await search.press('ArrowUp');
     await palette.getByRole('button',{name:'Configurar IA',exact:true}).click();
     const settings=page.getByRole('dialog',{name:'Configurações',exact:true});await settings.waitFor();assert.ok(await settings.locator('#settings-ai').isVisible());assert.equal(await settings.getByRole('radiogroup',{name:'Tema da interface'}).count(),0);passed('Configuração dentro da busca abre diretamente a seção IA');
-    await settings.getByRole('button',{name:'Detectar CLIs',exact:true}).click();
+    const model=settings.getByRole('combobox',{name:'Modelo de IA',exact:true});await model.waitFor();
+    await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('2 modelos'));
+    assert.equal(await settings.getByRole('button',{name:'Configuração avançada',exact:true}).getAttribute('aria-expanded'),'false');
+    assert.ok((await app.evaluate(()=>global.__aiFixture.discoveryCalls)).length>0);assert.equal((await page.evaluate(()=>window.notes.aiStatus())).settings.model,'');
+    await model.click();const modelSearch=settings.getByRole('combobox',{name:'Buscar modelos de IA',exact:true});await modelSearch.pressSequentially('Example Deep');await settings.getByRole('option',{name:'Codex Example Deep',exact:true}).waitFor();await modelSearch.press('Enter');assert.ok((await model.innerText()).includes('Codex Example Deep'));
+    await settings.getByRole('combobox',{name:'Esforço da IA'}).click();assert.equal(await settings.getByRole('option',{name:'Médio',exact:true}).count(),0);await settings.getByRole('option',{name:'Alto',exact:true}).click();
+    await model.click();await modelSearch.fill('Balanced');await modelSearch.press('Enter');assert.ok((await settings.getByRole('combobox',{name:'Esforço da IA'}).innerText()).includes('Padrão'));passed('Modelos são listados ao abrir, pesquisam nomes com espaços e filtram esforços compatíveis');
     const provider=settings.getByRole('combobox',{name:'Provedor de IA'});await provider.click();await settings.getByRole('option',{name:'Claude Code',exact:false}).click();
+    await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('2 modelos'));
+    await model.click();await modelSearch.fill('Writer');await modelSearch.press('Enter');assert.ok((await model.innerText()).includes('Claude Example Writer'));
     await settings.getByRole('combobox',{name:'Agente de IA'}).fill('writer');await settings.getByRole('combobox',{name:'Agente de IA'}).press('Escape');
     await settings.getByRole('combobox',{name:'Esforço da IA'}).click();await settings.getByRole('option',{name:'Alto',exact:true}).click();
-    await settings.getByRole('button',{name:'Configuração avançada',exact:true}).click();await settings.getByRole('textbox',{name:'Modelo opcional',exact:false}).fill('fixture-model');
     await settings.getByRole('button',{name:'Salvar IA',exact:true}).click();await settings.getByRole('status').filter({hasText:'Configurações de IA salvas'}).waitFor();
     const prefs=await page.evaluate(()=>window.notes.aiStatus());assert.equal(prefs.settings.provider,'claude');assert.equal(prefs.settings.agent,'writer');assert.equal(prefs.settings.effort,'high');assert.equal(prefs.settings.model,'fixture-model');
     assert.equal(await page.locator('select,input[type=checkbox],input[type=range]').count(),0);passed('Provedor, agente, modelo e esforço salvos com controles próprios');
+    await settings.getByRole('button',{name:'Configuração avançada',exact:true}).click();const command=settings.getByRole('textbox',{name:'Executável do CLI',exact:true});await command.fill('C:\\AI Fixture\\alternate.exe');await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();
+    await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('2 modelos'));assert.equal(await app.evaluate(()=>global.__aiFixture.discoveryCalls.at(-1).command),'C:\\AI Fixture\\alternate.exe');assert.equal((await page.evaluate(()=>window.notes.aiStatus())).settings.command,'');await command.fill('');await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('2 modelos'));
+    await app.evaluate(()=>{global.__aiFixture.failDiscovery=true;});await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();await settings.getByRole('status').filter({hasText:'Falha sintética ao atualizar o catálogo.'}).waitFor();assert.ok((await model.innerText()).includes('Claude Example Writer'));await app.evaluate(()=>{global.__aiFixture.failDiscovery=false;});await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('2 modelos'));passed('Atualizar usa o executável ainda não salvo e preserva o catálogo se a consulta falhar');
+    await app.evaluate(()=>{global.__aiFixture.holdDiscovery=true;});await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();
+    while(!await app.evaluate(()=>global.__aiFixture.discoveryWaiting))await new Promise(resolve=>setTimeout(resolve,20));
+    await command.fill('C:\\AI Fixture\\latest.exe');await app.evaluate(()=>{global.__aiFixture.holdDiscovery=false;global.__aiFixture.releaseDiscovery();});await new Promise(resolve=>setTimeout(resolve,80));
+    await model.click();assert.equal(await settings.getByRole('option',{name:'Catálogo antigo',exact:true}).count(),0);await modelSearch.press('Escape');
+    await command.fill('');await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('2 modelos'));passed('Resposta atrasada de outro executável não substitui o catálogo atual');
+    await app.evaluate(()=>{global.__aiFixture.manyModels=true;});await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('26 modelos'));
+    await page.setViewportSize({width:960,height:640});await model.click();
+    await waitPage(page,()=>{const popup=document.querySelector('.ai-combobox-popup.is-searchable')?.getBoundingClientRect(),dialog=document.querySelector('.dialog')?.getBoundingClientRect();return popup&&dialog&&popup.top>=dialog.top&&popup.bottom<=dialog.bottom;});
+    await settings.getByRole('option',{name:'Extra Model 23',exact:true}).click();assert.ok((await model.innerText()).includes('Extra Model 23'));
+    await page.setViewportSize({width:1440,height:900});await model.click();await modelSearch.fill('Writer');await modelSearch.press('Enter');await app.evaluate(()=>{global.__aiFixture.manyModels=false;});await settings.getByRole('button',{name:'Atualizar modelos',exact:true}).click();await waitPage(page,()=>document.querySelector('#settings-ai')?.innerText.includes('2 modelos'));passed('Lista longa mantém busca e último modelo acessíveis em 960×640');
     await settings.getByRole('button',{name:'Concluir',exact:true}).click();
 
     await titleSearch.click();await palette.getByRole('tab',{name:'Pedir à IA',exact:true}).click();
@@ -93,7 +119,7 @@ async function main(){
     await app.evaluate(()=>{global.__aiFixture.mode='create';});await input.fill('Crie outra estrutura para verificar o desfazer.');await input.press('Enter');await palette.getByRole('region',{name:'Resposta da IA'}).filter({hasText:'Criei o projeto Aurora'}).waitFor();
     await palette.getByRole('button',{name:'Fechar busca',exact:true}).click();await page.keyboard.press('Control+s');await titleSearch.click();await palette.getByRole('button',{name:'Limpar resposta',exact:true}).click();await palette.getByRole('heading',{name:'Suas ideias, organizadas.',exact:true}).waitFor();
     await palette.getByRole('button',{name:'Desfazer alterações',exact:true}).click();await palette.getByRole('region',{name:'Resposta da IA'}).filter({hasText:'desfeitas'}).waitFor();passed('Desfazer a criação permanece disponível depois de limpar a resposta');
-    await palette.getByRole('button',{name:'Configurar IA',exact:true}).click();await settings.screenshot({path:path.join(artifacts,'notes-ai-settings.png')});
+    await palette.getByRole('button',{name:'Configurar IA',exact:true}).click();await page.locator('.toast').waitFor({state:'hidden'});await settings.screenshot({path:path.join(artifacts,'notes-ai-settings.png')});
     assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);passed('Renderer sem erros e sem requisições HTTP de modelo');
     const exited=new Promise(resolve=>app.process().once('exit',resolve));await page.evaluate(()=>window.notes.window('close'));await exited;await app.close().catch(()=>{});app=null;
     app=await electron.launch({args:[root],env,timeout:30000});page=await app.firstWindow();await page.waitForSelector('article[data-pane]');

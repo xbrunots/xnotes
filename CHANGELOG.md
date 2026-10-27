@@ -5,7 +5,9 @@ O histórico abaixo descreve o estado do projeto; uma entrada não significa que
 ## Em preparação — IA local e busca central
 
 - Campo central na barra da janela com modos Buscar e Pedir à IA, navegação por teclado e atalho Ctrl+K.
-- Engrenagem da busca abre Configurações diretamente na seção Inteligência artificial, com provedor, agente/modo e esforço; executável e modelo ficam em Avançado.
+- Engrenagem da busca abre Configurações diretamente na seção Inteligência artificial, com provedor, modelo pesquisável, agente/modo e esforço. Executável e identificador personalizado ficam em Avançado.
+- Catálogos reais de modelos via Codex App Server, inicialização do Claude Code e opções ACP; atualização usa o formulário atual sem salvar preferências, ignora respostas antigas e filtra esforços por modelo.
+- Foco e seleção no editor deixam de gerar uma versão local por causa de um parágrafo auxiliar, preservando o desfazer de conteúdo recebido da IA.
 - Integrações com Codex CLI, Claude Code e ACP v1, reutilizando autenticação existente e preferências locais fora do Git.
 - Criação e edição de notas, grupos e sessões por ações tipadas, com leitura de contexto, aplicação local validada e proteção contra alterações concorrentes.
 - Cancelamento, relatório de alterações, lixeira com anexos preservados e desfazer do último lote da IA durante a sessão do aplicativo.

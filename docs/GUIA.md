@@ -14,7 +14,7 @@ O programa guarda sua biblioteca em `notes-data` ao lado do portable. Em uma pas
 
 Clique no **campo no centro da barra da janela** ou pressione **Ctrl+K**. Em **Buscar**, encontre notas, grupos, sessões e comandos; setas e Enter navegam pelos resultados. Em **Pedir à IA**, descreva o que deseja criar, editar ou organizar na biblioteca.
 
-A **engrenagem da busca** abre Configurações diretamente em **Inteligência artificial**. Escolha o provedor, agente e esforço. Em Avançado, há executável, modelo opcional e argumentos ACP separados por linha. Salve antes de **Detectar CLIs**; depois, ajuste as opções anunciadas e salve novamente. O notes reutiliza um CLI instalado e autenticado; não instala provedores nem inicia login.
+A **engrenagem da busca** abre Configurações diretamente em **Inteligência artificial**. Escolha provedor, modelo na lista pesquisável, agente e esforço. O catálogo carrega ao abrir a seção ou trocar o provedor; **Atualizar modelos** usa os campos atuais sem exigir salvamento. Em Avançado ficam executável, identificador de modelo personalizado e argumentos ACP separados por linha. Clique em **Salvar IA** para manter suas escolhas. O notes reutiliza um CLI instalado e autenticado; não instala provedores nem inicia login.
 
 Pedidos como “Crie o grupo Estudos com uma sessão Leitura” ou “Acrescente próximos passos à nota aberta” geram ações validadas e salvas localmente. A resposta mostra as mudanças, **Cancelar** interrompe uma consulta e **Desfazer alterações** reverte o último lote se as entidades afetadas ainda não mudaram. Excluir preserva notas e anexos na lixeira; IA não dispara envio ao GitHub.
 
