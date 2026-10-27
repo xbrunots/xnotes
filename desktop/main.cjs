@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, protocol, net, shell, nativeTheme, clipboard, powerMonitor } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, protocol, net, shell, nativeTheme, clipboard, powerMonitor, safeStorage } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -9,6 +9,8 @@ const { GitHubTools } = require('./github-tools.cjs');
 const { GitHubScheduler } = require('./github-scheduler.cjs');
 const { AssetStore } = require('./assets.cjs');
 const { importWorkspace } = require('./importers.cjs');
+const { NotionClient } = require('./notion-client.cjs');
+const { NotionMigration } = require('./notion-migration.cjs');
 const { writeBackup,readBackup,BACKUP_LIMITS } = require('./backups.cjs');
 const seed = require('./seed.json');
 
@@ -20,6 +22,7 @@ let win, store, sync, tools, scheduler, runtimeRoot, assets, importing = false, 
 const testing = process.env.NOTES_TEST === '1';
 const syncOnly = process.argv.includes('--sync-only');
 let openedDeviceCode, scheduledSync, scheduling = Promise.resolve();
+let notionClient, notionMigration, notionOperation;
 const send = (channel, value) => { if (win && !win.isDestroyed()) win.webContents.send(channel, value); };
 const action = (type, data = {}) => send('ui:action', { type, ...data });
 
@@ -65,6 +68,31 @@ async function ensureManualGitHubAccount(){
 }
 const safeFilename = name => (name || 'Sem título').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').slice(0, 120).replace(/[. ]+$/, '') || 'Nota';
 
+function runNotion(stage, task) {
+  if (closing) throw new Error('A janela está concluindo o salvamento.');
+  if (notionOperation || importing) throw new Error('Aguarde a importação atual terminar.');
+  const controller = new AbortController();
+  const operation = {controller,stage,promise:null};
+  notionOperation = operation;
+  const onProgress = value => send('notion:progress', {...value,stage:operation.stage});
+  operation.promise = Promise.resolve().then(() => task({signal:controller.signal,onProgress,operation})).finally(() => {
+    if (notionOperation === operation) notionOperation = null;
+    send('notion:progress',null);
+  });
+  return operation.promise;
+}
+async function stopNotion() {
+  const operation = notionOperation;
+  // A journal commit is atomic and must finish even if the window closes.
+  if (operation && operation.stage !== 'commit') operation.controller.abort();
+  if (operation) await operation.promise.catch(() => {});
+}
+async function notionStatus() {
+  const status = notionClient.status();
+  try { return {...status,migration:await notionMigration.status()}; }
+  catch { return {...status,migrationWarning:'O inventário anterior não pôde ser lido. Ele foi preservado; inicie uma nova verificação.'}; }
+}
+
 function handle(channel, fn) {
   ipcMain.handle(channel, async (event, ...args) => {
     if (!event.senderFrame || !event.senderFrame.url.startsWith('notes://app/')) throw new Error('Origem inválida.');
@@ -86,6 +114,38 @@ function registerIPC() {
   handle('github:dismiss-onboarding', async () => saveDeviceConfig({githubOnboardingSeen:true}));
   handle('github:folder', async () => {const folder=path.join(runtimeRoot,'notes-repository');const result=await shell.openPath(folder);if(result)throw new Error('A pasta da biblioteca ainda não está disponível.');});
   handle('github:repository', async () => {const url=sync.status.repository?.url;if(typeof url!=='string'||!/^https:\/\/github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/.test(url))throw new Error('Conecte um repositório primeiro.');await shell.openExternal(url);});
+  handle('notion:status', notionStatus);
+  handle('notion:connect', () => runNotion('connect',async options => {
+    await notionClient.connect(options);
+    return notionStatus();
+  }));
+  handle('notion:disconnect', async () => {
+    if (notionOperation || importing) throw new Error('Interrompa a importação antes de desconectar.');
+    await notionClient.disconnect();
+    return notionStatus();
+  });
+  handle('notion:scan', options => {
+    if (options !== undefined && (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(key => key !== 'resume') || (options.resume !== undefined && typeof options.resume !== 'boolean'))) throw new Error('Opções de inventário inválidas.');
+    return runNotion('scan',progress => notionMigration.scan({...progress,resume:options?.resume === true}));
+  });
+  handle('notion:import', planId => {
+    if (typeof planId !== 'string' || !/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/.test(planId)) throw new Error('Inventário Notion inválido.');
+    return runNotion('import',async ({signal,onProgress,operation}) => {
+      importing = true;
+      try {
+        const base = store.snapshot;
+        const result = await notionMigration.import({planId,snapshot:base,signal,onProgress});
+        signal.throwIfAborted();
+        operation.stage = 'commit'; onProgress({stage:'commit'});
+        await store.save(result.snapshot,{base});
+        // The durable workspace marker makes retries safe even if this final
+        // bookkeeping write fails after the successful journal commit.
+        await notionMigration.finish(planId).catch(() => {});
+        return result.report;
+      } finally { importing = false; }
+    });
+  });
+  handle('notion:cancel', async () => {await stopNotion();return notionStatus();});
   handle('asset:save', async descriptor => {
     if(typeof descriptor?.hash!=='string')throw new Error('Anexo inválido.');
     const known=store.snapshot.notes.flatMap(note=>note.attachments || []).find(file=>file.hash===descriptor.hash);
@@ -98,7 +158,7 @@ function registerIPC() {
   handle('link:open', async url=>{if(typeof url!=='string'||!/^https?:\/\//i.test(url))throw new Error('Endereço inválido.');await shell.openExternal(url);});
   handle('workspace:import-source', async (source,kind) => {
     if(!['notion','obsidian'].includes(source))throw new Error('Fonte de importação inválida.');
-    if(importing)throw new Error('Aguarde a importação atual terminar.');
+    if(importing || notionOperation)throw new Error('Aguarde a importação atual terminar.');
     const folder=kind==='folder';
     const selected=await dialog.showOpenDialog(win,{title:source==='notion'?'Selecionar exportação do Notion':'Selecionar cofre do Obsidian',properties:folder?['openDirectory']:['openFile'],...(folder?{}:{filters:[{name:'Arquivo ZIP',extensions:['zip']}]})});
     if(selected.canceled)return null;
@@ -212,7 +272,7 @@ function registerIPC() {
   });
   ipcMain.on('window:close-ready', async event => {
     if (event.sender !== win?.webContents) return;
-    readyToClose = true; await sync.close(); await tools.close(); await store.close(); await scheduling; win.close();
+    readyToClose = true; await stopNotion(); await sync.close(); await tools.close(); await store.close(); await scheduling; win.close();
   });
 }
 
@@ -251,6 +311,13 @@ async function start() {
   sync = new GitHubSync({store,assets,tools,repoDir:path.join(runtimeRoot,'notes-repository'),onStatus:updateSyncStatus});
   await sync.init({syncIfDue:false});
   if(syncOnly){await sync.syncIfDue();await scheduling;await sync.close();await tools.close();await store.close();app.exit(0);return;}
+  // Opening the app only restores the encrypted local grant. All Notion
+  // network activity and browser authorization require an explicit UI action.
+  const notionOptions={dataDir,secureStorage:{isAvailable:()=>safeStorage.isEncryptionAvailable(),encrypt:text=>safeStorage.encryptString(text),decrypt:bytes=>safeStorage.decryptString(bytes)},openExternal:testing?async()=>{throw new Error('Login real desativado em QA.');}:url=>shell.openExternal(url)};
+  if(testing)notionOptions.fetchImpl=async()=>{throw new Error('Acesso real ao Notion desativado em QA.');};
+  notionClient=new NotionClient(notionOptions);
+  await notionClient.restore().catch(()=>{});
+  notionMigration=new NotionMigration({client:notionClient,dataDir,assets,...(testing?{fetchImpl:notionOptions.fetchImpl}:{})});
   powerMonitor.on('resume',()=>{void sync.syncIfDue();});
   nativeTheme.themeSource = store.snapshot.theme === 'light' ? 'light' : 'dark';
   store.on('change',snapshot=>{nativeTheme.themeSource = snapshot.theme === 'light' ? 'light' : 'dark';send('workspace:changed',snapshot);});
@@ -267,11 +334,16 @@ async function start() {
     event.preventDefault(); if (closing) return; closing = true;
     send('window:closing');
     // A renderer that is hung must not force data loss by a timed auto-close.
-    setTimeout(async()=>{if(readyToClose || !win || win.isDestroyed())return;const result=await dialog.showMessageBox(win,{type:'warning',buttons:['Continuar aguardando','Fechar com os dados já salvos'],defaultId:0,cancelId:0,message:'O editor está demorando para concluir o salvamento.'});if(result.response===1){readyToClose=true;await sync.close();win.close();}else closing=false;},12000).unref();
+    setTimeout(async()=>{if(readyToClose || !win || win.isDestroyed())return;const result=await dialog.showMessageBox(win,{type:'warning',buttons:['Continuar aguardando','Fechar com os dados já salvos'],defaultId:0,cancelId:0,message:'O editor está demorando para concluir o salvamento.'});if(result.response===1){readyToClose=true;await stopNotion();await sync.close();win.close();}else closing=false;},12000).unref();
   });
   await win.loadURL('notes://app/index.html');
   void sync.syncIfDue();
   if (testing) global.__notesTest = {store,get sync(){return sync;},assets,dataDir,importWorkspace,
+    async setNotionClient(client){
+      if(notionOperation)throw new Error('QA: aguarde a operação Notion.');
+      if(typeof client?.callTool!=='function'||typeof client?.listTools!=='function'||typeof client?.status!=='function')throw new Error('QA: cliente sintético inválido.');
+      notionClient=client;notionMigration=new NotionMigration({client,dataDir,assets,fetchImpl:notionOptions.fetchImpl});
+    },
     async useGitHubRemote(testRemote,{loggedIn=false}={}){
       const target=path.resolve(testRemote),base=path.resolve(dataDir);
       if(!target.startsWith(base+path.sep))throw new Error('QA remote must be inside the temporary profile.');

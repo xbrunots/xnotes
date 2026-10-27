@@ -1,0 +1,43 @@
+name: Relatar um problema
+description: Ajude a reproduzir um comportamento inesperado no notes.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use somente exemplos fictícios. Para vulnerabilidades, consulte SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Versão do notes e do Windows
+      placeholder: notes 1.0.0, Windows 11 x64
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir
+      description: Descreva os passos a partir de uma biblioteca de exemplo.
+      placeholder: |
+        1. Abrir uma nota...
+        2. Selecionar...
+        3. Observar...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Resultado observado
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Capturas ou exemplo mínimo
+      description: Remova notas privadas, tokens e caminhos pessoais. Anexe apenas dados sintéticos.

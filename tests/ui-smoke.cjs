@@ -6,6 +6,7 @@ const path = require('node:path');
 const os = require('node:os');
 const assert = require('node:assert/strict');
 const {waitPage}=require('./helpers/wait-page.cjs');
+const {pasteBeforeCreate}=require('./helpers/paste.cjs');
 const {PNG} = require('pngjs');
 const {execFileSync}=require('node:child_process');
 const {WorkspaceStore}=require('../desktop/storage.cjs');
@@ -90,7 +91,7 @@ async function main(){
     const createdTitle='Teste persistência e sync '+Date.now();
     const title=page.locator('article[data-pane]').last().getByRole('textbox',{name:'Título da nota'});
     await app.evaluate(({clipboard},text)=>clipboard.writeText(text),'# Teste\n- [ ] Tarefa com acentos: ação, sessão\n\n[[Roadmap Q4]] #validação');
-    await editor.focus();await page.keyboard.press('Control+v');
+    await pasteBeforeCreate(page,editor);
     await editor.locator('h1').waitFor();
     assert(!(await editor.innerText()).includes('# Teste'));
     assert(!(await editor.innerText()).includes('[ ]'));

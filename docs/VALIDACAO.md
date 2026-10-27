@@ -1,6 +1,49 @@
 # Validação de notes — Windows x64
 
-## Atualização — ícones dos menus
+Este registro separa a preparação pública atual dos marcos anteriores. Resultados históricos não significam reexecução no estado atual do código. Uma configuração de CI também não representa uma execução remota aprovada.
+
+## Apresentação e migração Notion — 27/10/2026
+
+Apresentação do portfólio de Bruno Brito, documentação técnica, autoria, contribuição e workflow Windows. A atualização inclui conexão Notion por OAuth/PKCE, inventário retomável, importação com conferência de cobertura e preservação de notas anteriores. Veja o [guia da migração](IMPORTACAO_NOTION.md).
+
+Resultados locais desta rodada:
+
+| Verificação | Resultado e escopo |
+| --- | --- |
+| `npm test` | **264/264 passaram**, zero falhas ou testes ignorados, em 652.299,6899 ms. Esta rodada antecedeu a última regressão de navegação da retomada, validada separadamente abaixo. |
+| `node --test tests/notion-client.test.cjs tests/importers.test.cjs` | **30/30 passaram** no estado final: 16 de autenticação/transporte e 14 de importação ZIP/pasta. |
+| `node --test tests/notion-migration.test.cjs` | **28/28 passaram** após as correções finais de retomada, abas, links e preservação de notas. |
+| `npm run test:ui`, `test:layout`, `test:workspace`, `test:github-ui`, `test:code-ui` | Cinco suítes aprovadas no Electron real, com perfis temporários. `test:ui` e `test:code-ui` foram repetidas e aprovadas após a correção de colagem durante a inicialização. |
+| `npm run test:notion-ui` | Aprovado após as correções: ZIP HTML e Markdown/CSV; fluxo conectado com respostas sintéticas; inventário sem aplicar notas, commit explícito, links, idempotência, cancelamento, retomada, pendências, importação parcial seguida de complemento, edição local preservada, abas, recarga e ausência de upload. |
+| Revisão independente | Cliente Notion, motor, IPC, proteção de credenciais, identidade, downloads, cancelamento e integridade revisados; achados reproduzidos foram corrigidos e suas regressões passaram. Sem operação de conta real. |
+| `npm run docs:check` | 19 documentos Markdown e vínculos/recursos locais válidos. YAML do workflow e formulários também teve parsing local aprovado. |
+| Build e conteúdo distribuído | `npm run dist` aprovado. **19 arquivos do ASAR** conferidos contra fontes/build atuais, incluindo módulos Notion, renderer, HTML/CSS, cinco workers e avisos completos de terceiros. Perfis privados, autorizações e exportações fornecidas pelo usuário ausentes do pacote. |
+| `npm run test:portable` | Aprovado no novo EXE, com **50 verificações** registradas; abre, salva, fecha e reabre, mantém Monaco offline e oferece conexão Notion, ZIP e guia de exportação completa. |
+
+A verificação do portable revelou uma corrida: a colagem podia ocorrer antes de `onCreate` preencher o marcador DOM da instância. O editor passou a usar a instância viva já fornecida pelo hook. Os testes de interface agora forçam a ausência desse marcador durante uma colagem nativa, tanto para Markdown quanto para código; a falha foi reproduzida antes da correção e os dois caminhos passaram depois dela.
+
+Capturas reais em dois temas e do inventário Notion usam conteúdo fictício e perfis temporários, sem erro de página. PNGs em [assets](assets/). Referência `Notas.html` preservada: SHA-256 `30ed9250b734f16aa109a033ec38e73debb88f829dc68bae6f352af65d60e2ea`.
+
+### Portable desta rodada
+
+- Arquivo: `portable/notes-1.0.0-Windows-x64-portable.exe`.
+- Tamanho: **137.458.307 bytes**.
+- SHA-256: `e3439199f904a0bbad860339cc47a7b0146037cf266a86f9e30b72b109b7769a`.
+- Validação concluída: `2026-10-27T20:58:53.473Z`.
+- Checksum adicional: `portable/SHA256SUMS.txt`.
+- Evidência sintética local: `%TEMP%/notes-qa/portable-validation.json`, com caminho do EXE testado, tamanho, horário e lista das 50 verificações.
+
+O executável anterior em uso foi preservado com nome de backup na mesma pasta, sem encerrar o aplicativo do usuário. O artefato acima foi gerado novamente após a correção de colagem e efetivamente executado; `win-unpacked` não é a entrega final.
+
+### Limites da validação
+
+Login/registro OAuth real, leitura de conta pessoal, criação de repositório GitHub e agendamento Windows real não foram realizados em QA. Respostas MCP e identidades são sintéticas; a integração com a conta e as permissões reais depende da autorização no navegador. `complete` descreve o escopo acessível Particular/Compartilhado, e `workspaceComplete` permanece falso. Não há evidência de que todo o workspace pessoal tenha sido migrado nesta rodada.
+
+O workflow foi validado localmente como configuração, sem execução remota nesta rodada. A licença do próprio projeto continua pendente da escolha do mantenedor; os termos dos componentes de terceiros foram incluídos no build.
+
+## Marcos anteriores
+
+### Atualização — ícones dos menus
 
 O glifo de texto que parecia uma letra foi substituído por um indicador triangular preenchido em SVG de 14 × 14 px nos botões Aa e de linguagem do Monaco. O indicador acompanha as cores do tema e inverte ao abrir o menu. Os nomes acessíveis e as ações dos botões foram preservados.
 
@@ -9,7 +52,7 @@ O glifo de texto que parecia uma letra foi substituído por um indicador triangu
 - `npm run dist` e `npm run test:portable`: **passaram**; 50 verificações no novo EXE, com perfil temporário. Renderer, estilos, HTML e cinco workers conferidos no ASAR.
 - A validação do portable desta atualização está registrada em Portable final.
 
-## Atualização — popover de cor e código Monaco
+### Atualização — popover de cor e código Monaco
 
 A cor da nota agora é escolhida pela bolinha no canto superior direito, revelada no hover e no foco por teclado. O botão reflete o estilo atual e abre um popover com os 20 presets, sem modal/backdrop. Escape, clique fora, teclado, reset e encaixe nas bordas foram exercitados nas seis combinações Padrão/Ilha × Uma nota/Lado a lado/Grid, incluindo 1024 × 720.
 
@@ -20,12 +63,12 @@ Código reconhecido ao colar, blocos importados e seleções convertidas usam Mo
 - `npm run test:github-ui`: **passou** com o novo botão/popover. Hover, foco, fechamento, navegação por teclado, 20 estilos e persistência/sincronização permanecem funcionais.
 - `npm run test:ui`: **passou** após integrar Monaco, preservando edição visual, formatação, menus, temas e importação com anexos recebidos por outro perfil.
 - Revisão independente do código: **aprovada**. Além de 17 testes dirigidos, 36 round-trips preservaram TABs, linhas vazias, CRLF e entidades literais em listas/citações; entradas malformadas foram recusadas. Código aninhado usa serialização inerte com decoder restrito, sem payload duplicado. Código com crases internas também é preservado. Cópia e diff não interpretam sintaxe de links de notas dentro de código.
-- `npm audit --omit=dev --json`: **zero vulnerabilidades reportadas**. DOMPurify fixado em 3.4.17. O pacote fonte do Monaco não é duplicado no ASAR; o renderer e os workers compilados são suficientes.
+- `npm audit --omit=dev --json`: o registro anterior informa **zero vulnerabilidades reportadas no grafo npm**. O override fixa o pacote npm DOMPurify em 3.4.17; Monaco 0.56.0 inclui sua própria cópia vendorizada 3.4.8, que não é substituída pelo override nem avaliada como pacote independente por esse comando. O resultado histórico não é uma auditoria de todo código embarcado. O pacote fonte do Monaco não é duplicado no ASAR; renderer e workers compilados são distribuídos localmente.
 - `npm run test:portable`: **50 verificações passaram**, incluindo a criação real de um widget no EXE, linguagem TypeScript, herança da cor Pêssego e preservação após fechar e reabrir. A inspeção do ASAR confirmou os cinco workers e a correspondência do renderer/CSS/HTML com o build validado.
 
 Ambiente de QA: Windows x64, `notes://app/index.html`, Electron real/Playwright, perfis temporários. Browser plugin not available; foi utilizado o fluxo Electron do próprio projeto. Evidências adicionais: `notes-monaco.png`, `notes-monaco-widget.png` e `portable-code.png` na pasta de QA já indicada abaixo.
 
-## Escopo desta entrega
+### Escopo do marco anterior
 
 O Google Drive foi substituído por GitHub. A primeira abertura apresenta o onboarding; Conectar GitHub prepara Git e GitHub CLI portáteis oficiais, solicita autorização no navegador quando necessária e cria/adota um repositório privado reconhecido pelo notes. A biblioteca fica em `notes-repository` ao lado do portable; ferramentas e cache ficam fora do repositório.
 
@@ -33,7 +76,7 @@ Cada nota oferece exatamente 20 estilos fixos no grid **Cor e tema da nota**, ac
 
 O Grid mantém 12 px nas bordas em janelas amplas e 9 px abaixo de 1100 px, iguais aos intervalos entre cartões. Cartões com referências terminam no rodapé, sem faixa vazia abaixo dele. Em Padrão, o rodapé permanece transparente e sem divisória. Grupos, sessões e lista mostram a navegação; cada nota aberta tem um único editor visual.
 
-## Marco anterior — migração GitHub e 20 estilos
+### Migração GitHub e 20 estilos
 
 - Testes unitários anteriores e da paleta: **156/156 passaram**, executados com `node --test` para os arquivos `*.test.cjs` exceto `github-*.test.cjs`. Incluem armazenamento, importações Notion/Obsidian, anexos, backups, editor, organização, dimensões e contraste dos 20 estilos. Testes legados de Drive continuam no código-fonte como regressão, mas seus módulos são excluídos do aplicativo distribuído.
 - GitHub Tools e Scheduler: **25/25 passaram** — 16 casos de ferramentas e nove de agendamento. Downloads oficiais, checksums, extração segura, cancelamento reutilizável, cofre de credenciais, identidade e ownership das tarefas são exercitados com respostas e processos isolados.
@@ -48,7 +91,7 @@ O Grid mantém 12 px nas bordas em janelas amplas e 9 px abaixo de 1100 px, igua
 
 As esperas de IPC aguardam resultados assíncronos com polling em Node. Os testes de interface usam Playwright no Electron real. Perfis temporários e remotos Git bare isolados mantêm `portable/notes-data` fora de QA.
 
-## Sincronização e recuperação
+### Sincronização e recuperação
 
 O botão GitHub e Ctrl+Shift+S verificam ferramentas/conta e executam recebimento, merge, commit e push normal. A rotina automática respeita 24 horas após o último sucesso, com prazo persistido. A tarefa Windows por usuário chama `--sync-only` em segundo plano enquanto a sessão Windows estiver logada. Falhas reais de agendamento aparecem na interface. Edição, importação, foco e fechamento não iniciam upload; Ctrl+S salva localmente.
 
@@ -60,11 +103,11 @@ A validação cobre duas bibliotecas com Git real: sincronização, convergênci
 
 Referências oficiais: [login do GitHub CLI](https://cli.github.com/manual/gh_auth_login), [criação de repositórios](https://cli.github.com/manual/gh_repo_create) e [limites de arquivos](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github).
 
-## Referência e evidências
+### Referência e evidências
 
 `Notas.html` permaneceu intacto. SHA-256: `30ed9250b734f16aa109a033ec38e73debb88f829dc68bae6f352af65d60e2ea`. Fontes e recursos são locais. As mudanças de composição correspondem às solicitações do usuário. O editor continua visual, sem textarea ou alternância para código Markdown e sem widgets padrão do navegador.
 
-Evidências em `F:/Users/xbrun/AppData/Local/Temp/notes-qa/`:
+Evidências locais dos marcos anteriores em `%TEMP%/notes-qa/` (arquivos temporários não fazem parte do repositório):
 
 - `notes-note-palette.png` e `notes-note-colors.png`: os 20 estilos e notas coloridas.
 - `notes-github.png` e `notes-github-diff.png`: onboarding e comparação real entre Local/GitHub.
@@ -74,9 +117,9 @@ Evidências em `F:/Users/xbrun/AppData/Local/Temp/notes-qa/`:
 - `notes-selection-popover.png`, `notes-custom-controls.png`, `notes-imported.png` e `notes-context-menu.png`: edição, controles, importação e menus.
 - `portable-running.png`, `portable-grid.png` e `portable-validation.json`: execução e evidência do portable final.
 
-## Portable final
+### Artefato do marco anterior
 
-- Arquivo: `C:/Projects/xNodex/portable/notes-1.0.0-Windows-x64-portable.exe`.
+- Arquivo da rodada anterior: `portable/notes-1.0.0-Windows-x64-portable.exe` (o nome é reutilizado em novos builds; o hash identifica a rodada).
 - Tamanho: **137401188 bytes**.
 - SHA-256: `9ecb73153849bf41fb51e330b937920d62d0994eb67313196f4b13efcafb1a9e`.
 - Validação do executável: **2026-10-27T19:04:23.938Z** — 50 verificações aprovadas.

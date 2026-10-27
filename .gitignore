@@ -9,3 +9,9 @@ notes-data/
 notes-repository/
 notes-tools/
 build/google-oauth.local.json
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12

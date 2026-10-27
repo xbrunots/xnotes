@@ -55,13 +55,15 @@ export function RichEditor({note,variables,onChange,onReady,onNote,onAsset,onExt
           let hint;
           try{const metadata=clipboard?.getData('vscode-editor-data');if(metadata&&metadata.length<16384)hint=JSON.parse(metadata).mode;}catch{/* Plain code detection still works without editor metadata. */}
           const language=pastedCodeLanguage(text,hint);
-          if(language){event.preventDefault();const instance=root.current?.querySelector('.tiptap')?.__notesEditor;return instance?insertCodeBlock(instance,text,language):false;}
+          if(language){event.preventDefault();const instance=_view.dom.__notesEditor || editor;return instance?insertCodeBlock(instance,text,language):false;}
         }
         // Rich HTML is parsed through the editor schema. Plain Markdown is
         // converted on paste, before any source syntax enters the document.
         if(clipboard?.getData('text/html'))return false;
         if(!text)return false;
-        event.preventDefault();const instance=root.current?.querySelector('.tiptap')?.__notesEditor;
+        // The view can receive input before the deferred onCreate callback
+        // installs its DOM marker. The hook already owns the live editor.
+        event.preventDefault();const instance=_view.dom.__notesEditor || editor;
         instance?.commands.insertContent(splitNoteSource(text).content,{contentType:'markdown'});return !!instance;
       },
       handleClick:(_view,_pos,event)=>{

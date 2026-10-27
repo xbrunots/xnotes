@@ -7,6 +7,12 @@ async function build() {
   await fs.mkdir(path.join(root, 'app'), { recursive: true });
   await fs.cp(path.join(root, 'src/assets'), path.join(root, 'app/assets'), { recursive: true });
   await fs.copyFile(path.join(root, 'src/index.html'), path.join(root, 'app/index.html'));
+  // Monaco's source package is excluded from the portable. Carry its license
+  // and third-party notices with the compiled editor and offline workers.
+  await fs.mkdir(path.join(root, 'app/licenses'), { recursive: true });
+  for (const filename of ['LICENSE', 'ThirdPartyNotices.txt']) {
+    await fs.copyFile(path.join(root, 'node_modules/monaco-editor', filename), path.join(root, 'app/licenses', 'monaco-' + filename));
+  }
   await esbuild.build({
     entryPoints: [path.join(root, 'src/main.jsx')],
     bundle: true,

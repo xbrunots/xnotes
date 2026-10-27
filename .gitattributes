@@ -1,0 +1,2 @@
+# Keep the upstream font license byte-for-byte, including its trailing space.
+src/assets/OFL-Geist.txt -text whitespace=-blank-at-eol

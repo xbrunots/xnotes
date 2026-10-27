@@ -1,0 +1,71 @@
+name: Windows
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Testes e portable Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          architecture: x64
+          cache: npm
+      - name: Dependências
+        run: npm ci
+      - name: Documentação
+        run: npm run docs:check
+      - name: Testes de lógica e integração
+        run: npm test
+      # UI suites share the desktop clipboard and must remain sequential.
+      - name: Interface Electron
+        run: npm run test:ui
+      - name: Layout
+        run: npm run test:layout
+      - name: Painéis e mosaico
+        run: npm run test:workspace
+      - name: GitHub e conflitos na interface
+        run: npm run test:github-ui
+      - name: Monaco na interface
+        run: npm run test:code-ui
+      - name: Importação e migração Notion
+        run: npm run test:notion-ui
+      - name: Gerar portable
+        run: npm run dist
+      - name: Executar o portable final
+        run: npm run test:portable
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $artifact = Get-Item -LiteralPath portable/notes-1.0.0-Windows-x64-portable.exe
+          $digest = (Get-FileHash -LiteralPath $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  $($artifact.Name)" | Set-Content -LiteralPath portable/SHA256SUMS.txt -Encoding utf8
+      - name: Arquivo validado
+        uses: actions/upload-artifact@v7
+        with:
+          name: notes-Windows-x64-portable
+          path: |
+            portable/notes-1.0.0-Windows-x64-portable.exe
+            portable/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

@@ -270,7 +270,7 @@ function resolveTarget(value, current, indexes) {
   if (/^obsidian:\/\/open\?/i.test(value)) {
     try { value = new URL(value).searchParams.get('file') || value; } catch {}
   }
-  if (/^https?:\/\/(?:www\.)?notion\.(?:so|site)\//i.test(value)) {
+  if (/^https?:\/\/(?:[a-z\d-]+\.)?notion\.(?:so|site|com)\//i.test(value)) {
     const uuid = value.match(UUID_ANY)?.[1];
     const note = uuid && one(indexes.uuids, [uuid.replace(/-/g, '')]);
     return note ? { note, fragment: '', path: value } : { external: true };

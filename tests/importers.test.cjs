@@ -67,6 +67,19 @@ function zipBuffer(entries) {
   return Buffer.concat([...locals, directory, end]);
 }
 
+test('official Notion app and workspace URLs resolve imported page IDs while unrelated domains and code stay literal', async t => {
+  const { directory, assets, write } = await fixture(t);
+  const parentId='11111111222243338444555555555555',childId='aaaaaaaabbbb4ccc8dddeeeeeeeeeeee';
+  const target='https://app.notion.com/p/'+childId;
+  const source='# Entrada\n\n[Filha]('+target+')\n\n[Outra referência](https://equipe.notion.site/'+childId+')\n\n[Externo](https://notion.com.example.invalid/'+childId+')\n\n```text\n[Literal]('+target+')\n```';
+  await write('Entrada '+parentId+'.md',source);await write('Filha '+childId+'.md','# Filha\n\nConteúdo da filha.');
+  const {snapshot}=await importWorkspace({source:'notion',inputPath:directory,snapshot:seed(),assets});
+  const notes=contentNotes(snapshot),parent=notes.find(note=>note.title==='Entrada'),child=notes.find(note=>note.title==='Filha');
+  assert.equal(parent.imported.links.length,2);assert.ok(parent.imported.links.every(link=>link.noteId===child.id));
+  assert.ok(parent.body.includes('https://notion.com.example.invalid/'+childId));
+  assert.ok(parent.body.includes('```text\n[Literal]('+target+')\n```'));
+});
+
 test('Obsidian preserves raw files, YAML, Unicode hierarchy, aliases, links, duplicate titles and orphan assets', async t => {
   const { directory, assets, blobs, descriptors, write } = await fixture(t);
   const yaml = '---\ncreated: 2024-02-03\nupdated: 2025-04-05\ntags: [pessoal, "ação"]\naliases:\n  - Entrada\n---\n';
@@ -147,6 +160,48 @@ test('Notion ZIP parts expand recursively and retain the raw internal archive an
   const note = contentNotes(snapshot)[0]; assert.equal(note.title, 'Página'); assert.match(note.body, /notes-asset:[a-f0-9]{64}/);
   const archive = snapshot.notes.find(note => note.imported?.archive).attachments.find(item => item.relativePath === 'Parte 1.zip');
   assert.deepEqual(blobs.get(archive.hash), inner); assert.deepEqual(await fs.readFile(file), outer);
+});
+
+test('Notion HTML and Markdown ZIP exports import both pages and the database inside a wrapper folder', async t => {
+  const { assets, blobs, write } = await fixture(t);
+  const pageId = '0123456789abcdef0123456789abcdef', databaseId = '11111111222233334444555555555555', rowId = 'abcdef0123456789abcdef0123456789';
+  for (const format of ['html', 'md']) {
+    const wrapper = 'Export-99999999888877776666555555555555';
+    const pageName = 'Projeto ' + pageId, databaseName = 'Tarefas ' + databaseId, rowName = 'Entrega ' + rowId;
+    const pagePath = wrapper + '/' + pageName + '.' + format;
+    const databasePath = wrapper + '/' + pageName + '/' + databaseName + '_all.csv';
+    const rowPath = wrapper + '/' + pageName + '/' + databaseName + '/' + rowName + '.' + format;
+    const databaseLink = encodeURI(pageName + '/' + databaseName + '_all.csv');
+    const pageLink = encodeURI('../../' + pageName + '.' + format);
+    const html = (title, body) => '<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title><style>.page { color: black; }</style></head><body><article class="page sans"><header><h1 class="page-title">' + title + '</h1></header><div class="page-body">' + body + '</div></article></body></html>';
+    const page = format === 'html' ? html('Projeto', '<p>Contexto completo da página principal.</p><a href="' + databaseLink + '">Tarefas</a>') : '# Projeto\n\nContexto completo da página principal.\n\n[Tarefas](' + databaseLink + ')';
+    const row = format === 'html' ? html('Entrega', '<table class="properties"><tbody><tr><th>Status</th><td>Pronto</td></tr></tbody></table><p>Conteúdo completo da página do banco.</p><a href="' + pageLink + '">Projeto</a>') : '# Entrega\n\nStatus: Pronto\n\nConteúdo completo da página do banco.\n\n[Projeto](' + pageLink + ')';
+    const csv = 'Nome,Status\r\nEntrega,Pronto\r\n';
+    const entries = [{ name: pagePath, data: page }, { name: databasePath, data: csv }, { name: rowPath, data: row }];
+    const archiveBytes = zipBuffer(entries), file = await write('notion-' + format + '.zip', archiveBytes);
+    const original = freeze(seed()), before = structuredClone(original);
+    const { snapshot, report } = await importWorkspace({ source: 'notion', inputPath: file, snapshot: original, assets });
+    const notes = contentNotes(snapshot), byPath = new Map(notes.map(note => [note.imported.path, note]));
+    assert.equal(report.notes, 3, format + ': both pages and the CSV become notes');
+    assert.equal(report.files, 3); assert.equal(report.unresolvedLinkCount, 0);
+    assert.deepEqual(new Set(notes.map(note => note.title)), new Set(['Projeto', 'Tarefas', 'Entrega']));
+    assert.match(byPath.get(pagePath).body, /Contexto completo da página principal\./);
+    assert.ok(byPath.get(pagePath).body.includes('[[Tarefas]]'));
+    assert.match(byPath.get(rowPath).body, /Conteúdo completo da página do banco\./);
+    assert.ok(byPath.get(rowPath).body.includes('[[Projeto]]'));
+    assert.ok(byPath.get(databasePath).body.includes('| Entrega | Pronto |'));
+    assert.equal(new Set(notes.map(note => note.s)).size, 3, 'each exported directory has its own session');
+    const selected = notes.find(note => note.s === snapshot.session && snapshot.focusBy[snapshot.session] === note.id);
+    assert.ok(selected, 'the selected session and note exist in the imported content');
+    assert.ok(snapshot.expanded[report.groupId]);
+    const manifest = snapshot.notes.find(note => note.imported?.archive);
+    assert.equal(manifest.attachments.length, 3);
+    for (const entry of entries) {
+      const descriptor = manifest.attachments.find(item => item.relativePath === entry.name);
+      assert.deepEqual(blobs.get(descriptor.hash), Buffer.from(entry.data));
+    }
+    assert.deepEqual(original, before); assert.deepEqual(await fs.readFile(file), archiveBytes);
+  }
 });
 
 test('ZIP nesting depth is bounded and deeper raw archives remain recoverable', async t => {

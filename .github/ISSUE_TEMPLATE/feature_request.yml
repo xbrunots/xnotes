@@ -1,0 +1,29 @@
+name: Propor uma melhoria
+description: Explique uma necessidade e o comportamento desejado.
+title: "[Ideia] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Qual necessidade você quer resolver?
+      description: Descreva quem se beneficia e em qual situação.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Como deveria funcionar?
+      description: Conte o fluxo do ponto de vista de quem usa o notes.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Como saberemos que ficou bom?
+      description: Exemplos de resultados observáveis ou critérios de aceite.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas e referências

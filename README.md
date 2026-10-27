@@ -1,116 +1,122 @@
-# notes para Windows
+<p align="center">
+  <img src="src/assets/logo.png" width="64" height="64" alt="Monograma X do notes">
+</p>
 
-Aplicativo de notas baseado no `Notas.html` fornecido. A interface mantém as fontes Geist/Geist Mono, as superfícies de vidro, as cores, os painéis, as sessões, as tags e os links da referência. As mudanças solicitadas são a remoção do card externo e dos controles de Mac, uma barra integrada ao Windows e o logo X exclusivo.
+<h1 align="center">notes</h1>
 
-## Executar
+![notes — espaço para pensar. Um projeto de Bruno Brito.](docs/assets/cover.svg)
 
-Abra **`portable/notes-1.0.0-Windows-x64-portable.exe`**. Não é necessário instalar Node, Electron ou o aplicativo. A primeira execução contém as notas de exemplo da referência, que podem ser editadas ou movidas para a lixeira.
+<p align="center">
+  <strong>Um espaço visual para escrever, conectar ideias e guardar código.</strong><br>
+  Feito para Windows. Seus dados ficam com você.
+</p>
 
-Somente portable é gerado. O projeto não possui alvo de instalador. A pasta `portable/win-unpacked` é intermediária; o arquivo de entrega é o `.exe` portable na raiz de `portable/`.
+<p align="center">
+  <a href="https://brunobrito.org"><img src="https://img.shields.io/badge/criado_por-Bruno_Brito-b8acf8?style=flat-square" alt="Criado por Bruno Brito"></a>
+  <a href="https://www.linkedin.com/in/brunosbrito/"><img src="https://img.shields.io/badge/LinkedIn-Bruno_Brito-0A66C2?style=flat-square" alt="LinkedIn de Bruno Brito"></a>
+  <a href="docs/DESENVOLVIMENTO.md"><img src="https://img.shields.io/badge/Windows-x64_portable-90d4d0?style=flat-square" alt="Windows x64 portable"></a>
+  <a href="docs/DESENVOLVIMENTO_COM_IA.md"><img src="https://img.shields.io/badge/desenvolvimento-assistido_por_IA-cab7ed?style=flat-square" alt="Desenvolvimento assistido por IA"></a>
+</p>
 
-O programa guarda sua biblioteca em `notes-data` ao lado do portable. Em uma pasta sem permissão de gravação, utiliza `%APPDATA%/notes`. A cópia local permite trabalhar sem Internet. Transporte também as pastas da biblioteca ou conecte a mesma conta GitHub no outro PC.
+<p align="center">
+  <a href="#comece-aqui">Começar</a> ·
+  <a href="docs/README.md">Documentação</a> ·
+  <a href="docs/ARQUITETURA.md">Arquitetura</a> ·
+  <a href="CONTRIBUTING.md">Contribuir</a> ·
+  <a href="README.en.md">English</a>
+</p>
 
-## GitHub
+---
 
-Na primeira abertura, o notes apresenta o onboarding. Clique em **Conectar GitHub**: o aplicativo verifica Git e GitHub CLI, baixa as versões portáteis oficiais que estiverem faltando e abre o login no navegador. Nenhum cadastro de aplicativo OAuth, token manual ou JSON é necessário. Se a conta já estiver conectada no GitHub CLI, ela é reutilizada.
+## Ideias soltas. Contexto conectado.
 
-As ferramentas ficam em **notes-tools** ao lado do portable. Downloads têm tamanho e SHA-256 verificados; não é necessário instalar GitHub Desktop ou conceder privilégios de administrador. A autenticação usa o cofre do Windows. Se o cofre não estiver disponível, o notes informa a falha e não trata credenciais em texto aberto como uma conexão segura.
+**notes** reúne escrita, referências e trechos de código em um aplicativo desktop que funciona offline. Organize por grupos e sessões, conecte notas com links e escolha entre uma página em foco, editores lado a lado ou cartões em mosaico.
 
-O aplicativo cria um repositório **privado**, chamado **notes-library**, e uma pasta **notes-repository** ao lado do EXE. Em outro computador, entre na mesma conta: uma biblioteca existente só é adotada se tiver o marcador válido do notes e continuar privada. Um repositório de outro projeto com o mesmo nome é preservado; o notes escolhe outro nome disponível.
+A sincronização é opcional e usa um repositório **privado na sua conta GitHub**. Escrever salva no computador; enviar para o GitHub é uma ação separada, manual ou diária.
 
-Notas, documentos visuais, grupos, sessões, tags, temas, lixeira e anexos são exportados para essa pasta. Arquivos que você adicionar diretamente nela também são versionados. O cache do dispositivo, os tokens, as ferramentas e as cópias locais de recuperação ficam fora do repositório. Não coloque credenciais na pasta da biblioteca.
+![Aplicativo notes real: tema Carbono, grupos e sessões, quatro abas, cartões em mosaico e editor Monaco.](docs/assets/notes-dark.png)
 
-**Sincronização diária ou manual:** o botão GitHub e **Ctrl+Shift+S** recebem as alterações remotas, mesclam mudanças compatíveis, criam um commit e fazem push. A rotina automática respeita um prazo persistido de 24 horas após o último sucesso. Editar, importar, focar ou fechar não inicia upload; **Ctrl+S** apenas salva localmente.
+<p align="center"><sub>Captura do Electron real, com conteúdo fictício. Os temas de cada nota acompanham seus controles e blocos de código.</sub></p>
 
-No portable, uma tarefa Windows por usuário verifica o prazo em segundo plano, inclusive com o notes fechado, enquanto a sessão do Windows estiver logada. Ao voltar de suspensão, a execução pendente é retomada. Se o Windows impedir o agendamento, o status informa a limitação e a rotina continua funcionando com o notes aberto. Não há necessidade de senha de administrador.
+## Feito para o fluxo de trabalho
 
-Arquivos presentes apenas no GitHub são recebidos automaticamente. Se houver duas alterações incompatíveis, abre-se **Comparar versões**, com Local e GitHub. Você pode manter a versão local, a remota ou ambas, quando aplicável. Se os dados mudarem durante a comparação, a escolha antiga é recusada e a comparação é atualizada.
+| Recurso | O que você pode fazer |
+| --- | --- |
+| **Escrita visual** | Colar Markdown e editar títulos, listas, tarefas, tabelas e links diretamente na nota. |
+| **Código com contexto** | Editar blocos Monaco com 84 linguagens, workers locais e conteúdo persistido. Código não é executado. |
+| **Organização flexível** | Usar grupos, sessões, tags, links entre notas, abas e painéis redimensionáveis. |
+| **Seu espaço, seu tema** | Escolher entre 10 temas globais, 20 estilos por nota e aparências Padrão ou Ilha. |
+| **Dados locais** | Trabalhar sem conexão, manter anexos e exportar backups completos em ZIP. |
+| **GitHub opcional** | Sincronizar com histórico Git, merge de alterações compatíveis e comparação Local/GitHub para conflitos. |
+| **Migração com conferência** | Conectar ao Notion, conferir páginas, bancos e pendências antes de importar; também aceitar ZIPs e cofres Obsidian, preservando originais. |
+| **Windows portable** | Abrir um único executável, com controles Windows, Snap e atalhos de teclado. |
 
-O histórico usa revisões imutáveis, relógios por dispositivo, commits Git e snapshots de recuperação. Uma interrupção ou push rejeitado preserva alterações e permite retomar. Não há force-push ou descarte automático de versões. O Google Drive deixou de ser utilizado; as notas locais existentes são preservadas.
+<details>
+<summary><strong>Veja também em tema claro</strong></summary>
 
-Anexos de até 256 MiB são divididos em partes de no máximo 32 MiB, com checksums, sem depender de Git LFS. Para arquivos adicionados diretamente à pasta, o limite individual é 100 MiB; arquivos maiores são preservados localmente e geram um erro explícito antes do envio. O uso continua sujeito aos limites da conta e do serviço GitHub.
+![notes no tema Neve, com os mesmos cartões e conteúdo da captura escura.](docs/assets/notes-light.png)
 
-Preserve **notes-data** e **notes-repository** ao transportar uma biblioteca offline. As ferramentas podem ser baixadas novamente. Em outro PC, a conta GitHub precisa de sua própria autorização no cofre daquele Windows.
+</details>
 
-## Importar do Notion e Obsidian
+## Comece aqui
 
-Use **Arquivo → Importar do Notion/Obsidian**, a busca `Ctrl+K` ou Configurações.
+**Quer usar o aplicativo?** O artefato final é `notes-1.0.0-Windows-x64-portable.exe`, gerado em `portable/`. Abra-o em uma pasta gravável; Node.js e Electron não são necessários no computador de uso.
 
-- **Notion:** exporte o workspace em **HTML** ou **Markdown e CSV**, incluindo subpáginas e arquivos. Selecione o ZIP ou a pasta extraída. Páginas, subpáginas e bancos CSV tornam-se notas. ZIPs internos são expandidos até três níveis, preservando também os ZIPs originais.
-- **Obsidian:** selecione o cofre completo ou um ZIP. Notas Markdown, caminhos, frontmatter, tags, aliases e links são importados. Canvas e bases mantêm seu conteúdo, e as configurações são arquivadas.
-- **Originais:** todos os arquivos capturados, inclusive recursos sem referência, ficam preservados com seus bytes e caminhos na sessão **Arquivos da importação**. Anexos podem ser salvos novamente e participam do sync e dos backups. Scripts e plugins ficam guardados como arquivos inertes.
-- **Links:** links entre páginas são associados às notas importadas, inclusive quando títulos se repetem. Imagens locais são exibidas no leitor. Incorporações de notas tornam-se links, mantendo a sintaxe original nos arquivos arquivados. Âncoras e metadados originais ficam preservados; o leitor abre a nota, sem navegar até blocos específicos.
+O executável não faz parte do código versionado. Consulte [Releases](https://github.com/xbrunots/xnotes/releases) para verificar se há uma distribuição publicada. Se ainda não houver, gere o portable a partir do código abaixo. `portable/win-unpacked/notes.exe` é intermediário de build.
 
-O relatório mostra arquivos excluídos, links não resolvidos e outras observações. `.git`, `node_modules`, `.trash`, links simbólicos/junctions e tipos especiais são ignorados explicitamente. A importação não altera a fonte nem substitui notas existentes. Importar novamente cria um grupo independente.
-
-A importação do Notion trabalha com o conteúdo que a exportação disponibiliza. Histórico de versões, permissões, visualizações, automações e recursos não exportados não são reconstruídos como funções do notes. Comentários só podem ser preservados se estiverem incluídos no material exportado. Funcionalidades de plugins do Obsidian também não são executadas.
-
-Limites por importação: 20 mil entradas, 1 GiB de arquivos, 256 MiB por arquivo e 16 MiB por nota de texto. A operação falha explicitamente em dados inválidos ou ao exceder os limites. Nenhum estado parcial é salvo na biblioteca; blobs já copiados podem permanecer sem referência na cópia local.
-
-## Notas e janela
-
-- Em **Configurações → Aparência da área de trabalho**, escolha **Padrão** (área contínua) ou **Ilha** (painéis separados de grupos, lista e notas). Grupos, sessões e lista permanecem disponíveis; a lista mostra títulos sem repetir o corpo das notas.
-- Abra notas em abas e escolha **Uma nota**, **Lado a lado** ou **Grid**. No Grid, cartões de altura natural formam um mosaico que preenche as colunas livres e rola verticalmente. Editar, carregar imagens e mudar a largura reorganiza o mosaico sem duplicar o editor. As abas não são fechadas automaticamente ao abrir a quinta nota.
-- Em Ilha, as abas ficam dentro da moldura da área de notas, alinhada com os painéis vizinhos. No modo Padrão, o rodapé de referências não tem fundo, divisória ou bordas.
-- Arraste a borda direita da barra lateral, da lista ou de uma nota lado a lado/Grid para redimensionar. Arraste a divisão entre grupos/sessões e tags para ajustar suas alturas. Os tamanhos são salvos ao soltar, respeitam limites mínimos e se adaptam à janela. As setas ajustam o separador focado; Shift acelera, Esc cancela e duplo clique restaura o tamanho padrão.
-- Arraste grupos para reordenar, sessões entre grupos, notas entre sessões e abas para mudar sua ordem. Nos itens da navegação, `Alt+↑/↓` também reordena por teclado. Conteúdo, IDs, anexos e documentos visuais acompanham a nota.
-- Os botões de criação usam **+**, com tooltip e nomes acessíveis: nova nota, novo grupo e nova sessão.
-- Passe o mouse sobre uma nota para revelar a **bolinha de cor no canto superior direito**. Ela mostra a cor atual e abre um popover com **20 estilos exclusivos** em grid, sem escurecer a tela. Cada opção combina fundo, texto, bordas, links e controles. Escape ou clique fora fecha a paleta. A cor persiste e sincroniza; **Usar tema do aplicativo** remove a personalização. O menu de contexto também abre a mesma paleta.
-- O conteúdo é sempre editado visualmente, incluindo notas importadas. Markdown colado é convertido em títulos, listas, tarefas, tabelas, imagens e links; não existe modo de código ou textarea de Markdown.
-- Selecione texto para abrir o popover: negrito, itálico, sublinhado, tachado, destaque, títulos, listas, tarefas, citação, alinhamento, links e tabelas. O botão **Aa** ou `Alt+F10` abre as ferramentas sem seleção. Links internos podem ser inseridos como `nota:Nome da nota`; clicar neles abre ou cria a nota de destino.
-- Cole código reconhecível para criar um **bloco Monaco** automaticamente. Blocos de código de notas importadas também usam o widget. Para outro texto, selecione o trecho e use **Transformar em código (Monaco)** nas ferramentas ou no menu direito. A detecção conserva prosa e Markdown misto no editor visual; snippets ambíguos podem ser convertidos manualmente.
-- No widget, clique com o botão direito para escolher entre **84 linguagens com busca**, copiar o código, selecionar tudo, transformar em texto ou excluir o bloco. Cores acompanham o tema de cada nota, inclusive em notas lado a lado; não há escolha de tema dentro do Monaco. O editor e seus workers são distribuídos localmente, sem CDN. Código não é executado. Escape ou Ctrl+Enter volta à nota; Undo/Redo, salvamento e sincronização incluem o conteúdo e a linguagem.
-- Botão direito em uma nota: renomear, duplicar com anexos e estilo, fixar, mover/copiar entre sessões, copiar texto visual/título, exportar, ver anexos, fechar e enviar à lixeira. No editor também há desfazer/refazer, recortar, copiar, colar e selecionar tudo.
-- Botão direito em grupos e sessões: criar, renomear, duplicar com conteúdo, reordenar, ordenar, alterar cores de grupos, mover sessões ou notas, expandir/recolher e excluir. Exclusão de grupo/sessão pede confirmação e preserva notas e anexos na lixeira.
-- Em **Configurações → Temas**, escolha entre **Obsidiana, Carbono, Meia-noite, Bosque, Ametista** (escuros) e **Neve, Papel, Areia, Bruma, Lavanda** (claros). A seleção de tema fica apenas nas Configurações. Obsidiana e Carbono são especialmente escuros. Tema, destaque, movimento e desfoque persistem e sincronizam com as preferências.
-- A barra integrada inclui Arquivo, Editar, Visualizar, busca, GitHub e configurações. Os controles Windows preservam minimizar, maximizar/restaurar, fechar, Snap, arraste e redimensionamento. Tela cheia fica em Visualizar (`F11`).
-- Dropdowns, seletores de cor, toggles, sliders e checkboxes são desenhados pelo projeto, com suporte a teclado; nenhum widget padrão do navegador é exibido.
-
-| Atalho | Ação |
-|---|---|
-| Ctrl+K | Buscar notas, sessões e comandos |
-| Alt+N | Nova nota |
-| Ctrl+S | Salvar localmente |
-| Ctrl+Shift+S | Sincronizar GitHub agora |
-| Alt+↑ / Alt+↓ | Reordenar item de navegação focado |
-| Ctrl+B | Negrito no editor; mostrar/ocultar barra lateral fora dele |
-| Ctrl+I / Ctrl+U | Itálico / sublinhado no editor |
-| Alt+F10 | Abrir ferramentas da nota |
-| Ctrl+, | Configurações |
-| Ctrl+Delete | Mover a nota focada para a lixeira, fora do editor |
-| Esc | Fechar busca, popover ou menu |
-
-## Backups e recuperação
-
-**Exportar backup** cria um ZIP com a biblioteca inteira, inclusive lixeira e anexos. Importe pelo menu de backup para adicionar a outra biblioteca. Os bytes dos anexos e o checksum dos metadados são verificados. A exportação recusa previamente um arquivo que o próprio leitor não poderia restaurar. Limites do backup completo: 200 mil anexos, 32 GiB totais, 512 MiB de metadados e 256 MiB por anexo.
-
-O armazenamento local mantém um journal e três checkpoints de segurança. Corrupções recuperáveis são sinalizadas e os arquivos problemáticos são preservados. Dados irrecuperáveis geram um erro explícito, sem redefinir silenciosamente a biblioteca para as notas de exemplo. Cada revisão admite até 64 MiB e o checkpoint até 512 MiB; os limites são verificados antes das gravações.
-
-## Desenvolvimento e portable
-
-Requer Node 24 e Windows x64 para produzir a entrega desta plataforma.
+**Quer explorar o código?** Use Windows x64, Node.js 24 e Git:
 
 ```powershell
+git clone https://github.com/xbrunots/xnotes.git notes
+cd notes
 npm ci
-npm run start
-npm test
-npm run test:ui
-npm run test:layout
-npm run test:workspace
-npm run test:github-ui
-npm run test:code-ui
-npm run dist
-npm run test:portable
+npm start
 ```
 
-Se o gerenciador bloquear o download inicial do Electron, execute o script oficial `node node_modules/electron/install.js`. O pipeline de portable usa `electron-builder --win portable --x64`, com compressão nível 2 para builds locais. Não gera instalador nem solicita privilégios de administrador.
+A primeira abertura oferece a conexão com GitHub. Você pode concluir o onboarding e trabalhar localmente. O [guia de uso](docs/GUIA.md) explica conexão, importação, atalhos e recuperação; o [guia de desenvolvimento](docs/DESENVOLVIMENTO.md) explica build e testes.
 
-`scripts/import-reference.cjs` reimporta o HTML original e suas fontes para React compilado, sem executar o runtime externo da página no aplicativo. O aplicativo distribuído usa recursos locais, renderização isolada e sandbox. Não carrega código de CDNs e não envia notas a serviços do notes.
+## Por dentro da engenharia
 
-O logo foi gerado pelo imagegen integrado e salvo em `build/logo-original.png`. `scripts/icons.cjs`, executado pelo Electron, converte o mesmo desenho para ICO com tamanhos de 16 a 256 px, ícone PNG e favicon.
+O notes é um projeto de portfólio de **Bruno Brito**, desenvolvido com assistência de IA e foco em transformar direção de produto em software verificável.
 
-Documentação consultada: [login do GitHub CLI](https://cli.github.com/manual/gh_auth_login), [criação de repositórios](https://cli.github.com/manual/gh_repo_create), [limites de arquivos do GitHub](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github), [exportação do Notion](https://www.notion.com/help/export-your-content), [cofres do Obsidian](https://help.obsidian.md/Files+and+folders/Manage+vaults), [links do Obsidian](https://help.obsidian.md/Linking+notes+and+files/Internal+links), [segurança Electron](https://www.electronjs.org/docs/latest/tutorial/security).
+| Decisão | Por que ela importa | Onde conferir |
+| --- | --- | --- |
+| **Renderer isolado do sistema** | A interface usa uma API de preload; arquivos, credenciais e processos ficam no processo principal. | [Arquitetura](docs/ARQUITETURA.md) |
+| **Armazenamento com recuperação** | Journal, checkpoints e revisões ajudam a preservar trabalho após interrupções. | [Storage](desktop/storage.cjs) · [Testes](tests/storage.test.cjs) |
+| **Conflito como parte do produto** | Versões incompatíveis exigem decisão; uma comparação desatualizada não pode sobrescrever alterações novas. | [GitHub Sync](desktop/github-sync.cjs) · [Especificação](docs/ESPECIFICACAO.md) |
+| **Validação em camadas** | Testes de lógica, integração com Git, interface Electron e execução do portable têm responsabilidades distintas. | [Desenvolvimento](docs/DESENVOLVIMENTO.md) · [Validação](docs/VALIDACAO.md) |
+| **IA com critérios de aceite** | Regras explícitas, decisões documentadas e verificações reproduzíveis dão contexto à implementação assistida. | [Desenvolvimento com IA](docs/DESENVOLVIMENTO_COM_IA.md) |
 
-Editor visual: [Markdown no TipTap](https://tiptap.dev/docs/editor/markdown/getting-started/basic-usage), [popover de seleção](https://tiptap.dev/docs/editor/extensions/functionality/bubble-menu) e [clipboard assíncrono do Electron](https://www.electronjs.org/docs/latest/api/clipboard).
+**Stack:** Electron · React · TipTap/ProseMirror · Monaco Editor · esbuild · Node.js · Git · GitHub CLI · Playwright.
 
-Código: [CodeBlock do TipTap](https://tiptap.dev/docs/editor/extensions/nodes/code-block) e [integração ESM do Monaco](https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-esm.md).
+O renderer, as fontes e os workers do Monaco são distribuídos localmente. O aplicativo não depende de um serviço de backend do autor para editar notas. A sincronização conectada depende de GitHub e dos seus limites; repositório privado não equivale a criptografia ponta a ponta.
+
+## Explore a documentação
+
+| Para quem quer… | Leitura |
+| --- | --- |
+| Usar o aplicativo | [Guia de uso](docs/GUIA.md) |
+| Entender a solução | [Arquitetura e modelo de dados](docs/ARQUITETURA.md) |
+| Avaliar o escopo | [Especificação e critérios de aceite](docs/ESPECIFICACAO.md) |
+| Migrar do Notion | [Conexão, cobertura, ZIP e retomada](docs/IMPORTACAO_NOTION.md) |
+| Entender as escolhas | [Registro de decisões](docs/DECISOES.md) |
+| Reproduzir build e QA | [Desenvolvimento](docs/DESENVOLVIMENTO.md) e [validação registrada](docs/VALIDACAO.md) |
+| Avaliar o trabalho com IA | [Processo, limites e evidências](docs/DESENVOLVIMENTO_COM_IA.md) |
+| Colaborar | [Contribuição](CONTRIBUTING.md), [conduta](CODE_OF_CONDUCT.md) e [segurança](SECURITY.md) |
+| Propor o próximo passo | [Direções de evolução](docs/ROADMAP.md) |
+
+## Construa junto
+
+Encontrou um problema ou uma melhoria? [Abra uma issue](https://github.com/xbrunots/xnotes/issues/new/choose) com um cenário reproduzível ou envie uma contribuição seguindo o [guia](CONTRIBUTING.md). Documentação, acessibilidade e testes são boas formas de começar. Contribuições assistidas por IA são bem-vindas e seguem os mesmos critérios de qualidade.
+
+## Sobre o autor
+
+**Bruno Brito** — direção de produto e manutenção do notes.
+
+Este repositório mostra meu trabalho na interseção entre produto, experiência desktop e desenvolvimento assistido por IA. A proposta é tornar o raciocínio técnico tão acessível quanto o código: explicar escolhas, preservar dados e dar meios para reproduzir a validação.
+
+**[Conheça meu trabalho em brunobrito.org](https://brunobrito.org)** · **[Conecte-se comigo no LinkedIn](https://www.linkedin.com/in/brunosbrito/)**
+
+## Licença e créditos
+
+A licença do projeto será indicada aqui após a escolha do mantenedor. Dependências e fontes mantêm seus próprios termos; veja [créditos e componentes de terceiros](THIRD_PARTY_NOTICES.md).

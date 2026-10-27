@@ -1,12 +1,32 @@
 {
   "name": "notes",
   "version": "1.0.0",
-  "description": "Suas notas, sessões e ideias em um só espaço. Feito para Windows, com sincronização pelo GitHub.",
+  "description": "Editor visual de notas para Windows: dados locais, Monaco offline e sincronização GitHub. Um projeto de Bruno Brito com assistência de IA.",
   "private": true,
-  "author": "notes",
+  "author": {
+    "name": "Bruno Brito",
+    "url": "https://brunobrito.org"
+  },
+  "homepage": "https://brunobrito.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/xbrunots/xnotes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xbrunots/xnotes/issues"
+  },
+  "keywords": [
+    "notes", "local-first", "electron", "react", "tiptap", "monaco-editor",
+    "windows", "portable", "github-sync", "ai-assisted", "productivity"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
   "license": "UNLICENSED",
   "main": "desktop/main.cjs",
   "scripts": {
+    "docs:check": "node scripts/check-docs.cjs",
+    "docs:screenshots": "npm run build:ui && node scripts/capture-showcase.cjs",
     "dev": "node scripts/dev.cjs",
     "start": "npm run build:ui && electron .",
     "build:ui": "node scripts/build.cjs",
@@ -16,6 +36,7 @@
     "test:workspace": "npm run build:ui && node tests/advanced-workspace-ui.cjs",
     "test:github-ui": "npm run build:ui && node tests/github-ui.cjs",
     "test:code-ui": "npm run build:ui && node tests/code-widget-ui.cjs",
+    "test:notion-ui": "npm run build:ui && node tests/notion-import-ui.cjs && node tests/notion-migration-ui.cjs",
     "test:portable": "node tests/portable-smoke.cjs",
     "dist": "npm run build:ui && node scripts/package-portable.cjs",
     "dist:dir": "npm run build:ui && electron-builder --win --dir --x64"
@@ -60,6 +81,7 @@
   "build": {
     "appId": "app.notes.windows",
     "productName": "notes",
+    "copyright": "Copyright © 2026 Bruno Brito",
     "asar": true,
     "directories": {
       "output": "portable",
@@ -72,7 +94,9 @@
       "!desktop/drive-*.cjs",
       "!desktop/cloud-sync.cjs",
       "!node_modules/monaco-editor/**/*",
-      "package.json"
+      "package.json",
+      "README.md",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "win": {
       "target": [

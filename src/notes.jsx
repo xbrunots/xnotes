@@ -17,6 +17,7 @@ import {NoteThemeControl} from './note-theme-picker';
 import {GitHubIcon,GitHubPanel,GitHubConflictPanel,githubWorking} from './github-ui';
 import {convertSelectionToCode,insertCodeBlock} from './code-commands';
 import {pastedCodeLanguage} from './code-languages';
+import {NotionImport} from './notion-import';
 
 const PERSISTED = ['panelSizes','appearance','noteDisplay','theme','themePreset','themeChoices','accent','motion','blur','groups','notes','openBy','focusBy','session','view','tag','expanded','layout','sidebar'];
 const serial = state => Object.fromEntries(PERSISTED.filter(key=>key in state).map(key=>[key,state[key]]));
@@ -360,11 +361,12 @@ export class Notes extends ReferenceNotes {
   }
   importSource=(source,kind)=>this.run(async()=>{
     await this.flushAll();this.setState({importProgress:{phase:'Selecionando arquivos…'}});
-    try{const report=await window.notes.importSource(source,kind);if(report)this.setState({dialog:'import-report',importReport:report});}
+    try{const report=await window.notes.importSource(source,kind);if(report)this.setState({dialog:'import-report',importReport:report,importReportLimit:30});}
     finally{this.setState({importProgress:null});}
   });
   renderImport(source){
     const notion=source==='notion';
+    if(notion)return <Modal title="Importar do Notion" onClose={()=>{if(!this.state.busy)this.closeDialog();}}><NotionImport onBeforeImport={this.flushAll} onImported={report=>this.setState({dialog:'import-report',importReport:report,importReportLimit:30})} onArchive={kind=>this.importSource('notion',kind)} archiveProgress={this.state.importProgress} onClose={this.closeDialog}/></Modal>;
     const progress=this.state.importProgress;
     return <Modal title={notion?'Importar do Notion':'Importar do Obsidian'} onClose={()=>{if(!this.state.busy)this.closeDialog();}}>
       <div className="import-source-heading"><span className="source-monogram">{notion?'N':'O'}</span><div><h2>{notion?'Traga seu workspace.':'Traga seu cofre.'}</h2><p>O conteúdo original é preservado. Suas notas atuais continuam na biblioteca.</p></div></div>
@@ -377,7 +379,10 @@ export class Notes extends ReferenceNotes {
   renderImportReport(){
     const report=this.state.importReport;
     const warnings=[...(report.warnings || []),...(report.excluded || []).map(item=>typeof item==='string'?item:JSON.stringify(item))];
-    return <Modal title="Importação concluída" onClose={this.closeDialog}><h2>Seu conteúdo já está na biblioteca.</h2><p>Os arquivos de origem foram preservados.</p><div className="import-stats"><div><strong>{report.notes || 0}</strong><span>notas</span></div><div><strong>{report.sessions || 0}</strong><span>sessões</span></div><div><strong>{report.files || 0}</strong><span>arquivos preservados</span></div></div><p className="muted">Os anexos participam da sincronização automática com o GitHub. Os originais estão na nota de arquivos da importação.</p>{warnings.length>0&&<div className="import-warning"><strong>{warnings.length} observações</strong><ul>{warnings.slice(0,20).map((warning,i)=><li key={i}>{typeof warning==='string'?warning:JSON.stringify(warning)}</li>)}</ul>{warnings.length>20&&<p>Veja o relatório completo na nota de arquivos da importação.</p>}</div>}<footer><button className="primary" onClick={this.closeDialog}>Abrir biblioteca</button></footer></Modal>;
+    const sessions=new Map(this.state.groups.find(group=>group.id===report.groupId)?.sessions.map(session=>[session.id,session.name]) || []);
+    const imported=this.state.notes.filter(note=>sessions.has(note.s)&&note.imported&&!note.imported.archive&&!note.deletedAt);
+    const show=note=>this.setState(state=>({dialog:null,session:note.s,view:'session',tag:null,openBy:{...state.openBy,[note.s]:[...new Set([...(state.openBy[note.s] || []),note.id])]},focusBy:{...state.focusBy,[note.s]:note.id}}));
+    return <Modal title="Importação concluída" onClose={this.closeDialog}><h2>{report.notes?'Seu conteúdo já está na biblioteca.':'Os arquivos foram preservados.'}</h2><p>{report.notes?'Os arquivos de origem foram preservados.':'Não encontramos páginas compatíveis neste arquivo. Consulte os originais e o relatório antes de considerar a migração concluída.'}</p><div className="import-stats"><div><strong>{report.notes || 0}</strong><span>notas</span></div><div><strong>{report.sessions || 0}</strong><span>sessões</span></div><div><strong>{report.files || 0}</strong><span>arquivos preservados</span></div></div>{report.source==='notion'?<p className="muted">{report.notionMigrationId?'O relatório reúne o conteúdo acessível desta conexão. Confira as observações antes de considerar a migração concluída.':'O relatório mostra o conteúdo recebido. Um ZIP de uma página isolada não inclui todo o workspace.'}</p>:null}<div className="migration-report-notes" aria-label="Notas importadas">{imported.slice(0,this.state.importReportLimit || 30).map(note=><button key={note.id} aria-label={(note.imported.format==='csv'?'Abrir tabela ':'Abrir nota ')+note.title} onClick={()=>show(note)}><span><strong>{note.title}</strong><small>{note.imported.format==='csv'?'Tabela':'Página'} · {sessions.get(note.s)}</small></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>)}</div>{imported.length>(this.state.importReportLimit || 30)?<button onClick={()=>this.setState(state=>({importReportLimit:(state.importReportLimit || 30)+30}))}>Mostrar mais notas</button>:null}<p className="muted">Os anexos participam da sincronização diária ou manual com o GitHub. Os originais estão na nota de arquivos da importação.</p>{warnings.length>0&&<div className="import-warning"><strong>{warnings.length} {warnings.length===1?'observação':'observações'}</strong><ul>{warnings.slice(0,20).map((warning,i)=><li key={i}>{typeof warning==='string'?warning:JSON.stringify(warning)}</li>)}</ul>{warnings.length>20&&<p>Veja o relatório completo na nota de arquivos da importação.</p>}</div>}<footer><button className="primary" onClick={this.closeDialog}>Abrir biblioteca</button></footer></Modal>;
   }
   renderAttachmentDialog(){
     const note=this.state.notes.find(item=>item.id===this.state.attachmentNoteId);

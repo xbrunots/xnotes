@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentação do notes
+    url: https://github.com/xbrunots/xnotes/tree/HEAD/docs
+    about: Guias de uso, arquitetura, especificação e desenvolvimento.
+  - name: Segurança
+    url: https://github.com/xbrunots/xnotes/blob/HEAD/SECURITY.md
+    about: Veja os canais de relato privado antes de publicar detalhes sensíveis.

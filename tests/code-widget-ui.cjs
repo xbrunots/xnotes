@@ -6,6 +6,7 @@ const path=require('node:path');
 const os=require('node:os');
 const assert=require('node:assert/strict');
 const {waitPage}=require('./helpers/wait-page.cjs');
+const {pasteBeforeCreate}=require('./helpers/paste.cjs');
 const root=path.resolve(__dirname,'..'),evidence=path.join(os.tmpdir(),'notes-qa');
 
 async function main(){
@@ -26,7 +27,7 @@ async function main(){
     });
     const card=page.locator('[data-pane="ca"]'),editor=card.locator('[data-editor="ca"]'),widget=card.locator('[data-code-widget]');
     const source='const answer = 42;\nconsole.log(answer);\n';
-    await page.evaluate(text=>window.notes.copyText(text),source);await editor.focus();await page.keyboard.press('Control+v');
+    await page.evaluate(text=>window.notes.copyText(text),source);await pasteBeforeCreate(page,editor);
     await widget.locator('[data-code-editor]').waitFor();await widget.locator('.monaco-editor').waitFor({timeout:30000});
     await page.waitForFunction(()=>document.querySelector('[data-pane="ca"] [data-code-widget]')?.dataset.codeReady==='true');
     assert.equal(await widget.getAttribute('data-language'),'javascript');

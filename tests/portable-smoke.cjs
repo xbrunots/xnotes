@@ -165,7 +165,13 @@ async function main(){
     await run.page.keyboard.press('Control+k');
     await run.page.getByRole('textbox',{name:'Buscar notas, sessões ou comandos'}).fill('Importar do Notion');
     await run.page.keyboard.press('Enter');
-    await run.page.getByRole('dialog',{name:'Importar do Notion'}).waitFor();
+    const notionDialog=run.page.getByRole('dialog',{name:'Importar do Notion'});await notionDialog.waitFor();
+    await waitPage(run.page,()=>{const button=document.querySelector('.migration-primary-actions button.primary');return button&&!button.disabled;});
+    assert(await notionDialog.getByRole('button',{name:'Conectar ao Notion',exact:true}).isEnabled());
+    assert(await notionDialog.getByRole('button',{name:'Selecionar ZIP…',exact:true}).isEnabled());
+    assert.equal((await run.page.evaluate(()=>window.notes.notionStatus())).connected,false);
+    await notionDialog.getByRole('button',{name:'Como exportar tudo',exact:true}).click();
+    assert((await notionDialog.locator('.migration-guide').innerText()).includes('Exportar todo o conteúdo do workspace'));
     await run.page.getByRole('button',{name:'Cancelar',exact:true}).click();
     await close(run);run=null;
     console.log('PASS: o mesmo portable reabre os dados persistidos e inclui a importação do Notion.');
